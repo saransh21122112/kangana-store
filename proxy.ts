@@ -54,11 +54,18 @@ export const config = {
   // is matched (so the logged-in-and-on-/login redirect above still runs)
   // but excluded from the "must be authenticated" check via PUBLIC_PATHS.
   //
+  // `icon.jpg` (and `apple-icon.*`, in case one's added later) is Next's
+  // file-convention favicon — it replaced the old `favicon.ico` when the
+  // real Kangna logo was added, and needs the same public-asset exclusion
+  // that file had, or unauthenticated requests for it (e.g. the browser
+  // tab icon on /login itself) get redirected to /login instead of the
+  // image, breaking the favicon everywhere a session cookie isn't set yet.
+  //
   // `api/cron` is excluded here because it has no user session to check —
   // Vercel Cron (and the manual curl verification in Stage 8) hits it with
   // an `Authorization: Bearer <CRON_SECRET>` header instead, checked
   // directly inside app/api/cron/daily-check/route.ts. Without this
   // exclusion, this middleware would redirect the cron request to /login
   // (a 307, not the intended 401) before the route handler ever runs.
-  matcher: ["/((?!api/auth|api/cron|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!api/auth|api/cron|_next/static|_next/image|favicon.ico|icon.jpg|apple-icon.jpg).*)"],
 };

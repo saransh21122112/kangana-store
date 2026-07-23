@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import {
   LayoutDashboard,
@@ -68,9 +69,19 @@ export function Sidebar({ className }: SidebarProps) {
     >
       <div className="flex h-14 items-center gap-2 px-4">
         {!collapsed && (
-          <span className="flex-1 truncate text-sm font-semibold tracking-tight text-foreground">
-            Kangna CRM
-          </span>
+          <Link href="/" className="flex min-w-0 flex-1 items-center gap-2">
+            <Image
+              src="/kangna-logo.jpg"
+              alt="Kangna"
+              width={28}
+              height={28}
+              className="size-7 shrink-0 rounded-md object-cover"
+              priority
+            />
+            <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+              Kangna CRM
+            </span>
+          </Link>
         )}
         <button
           type="button"

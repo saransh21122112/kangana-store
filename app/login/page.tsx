@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
-import { Sparkles } from "lucide-react";
 
 import { AppleCard } from "@/components/apple/AppleCard";
 import { AppleButton } from "@/components/apple/AppleButton";
@@ -50,9 +50,14 @@ export default function LoginPage() {
     <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-            <Sparkles size={22} strokeWidth={1.75} />
-          </div>
+          <Image
+            src="/kangna-logo.jpg"
+            alt="Kangna"
+            width={56}
+            height={56}
+            className="size-14 rounded-2xl object-cover shadow-apple-card"
+            priority
+          />
           <h1 className="text-xl font-semibold tracking-tight text-foreground">
             Kangna CRM
           </h1>

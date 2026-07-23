@@ -2274,3 +2274,32 @@ grep-based systematic check of every `href`/`Link`/`fetch` call against real rou
 sampling. Mermaid diagrams rendered to actual image files and visually inspected. Domain change
 confirmed via curl against the new URL (200 on `/login`) after the env var update and a fresh
 `vercel --prod` deploy.
+
+**6. Added the real store logo.** The user supplied `kangana_Store_logo.jpg` (a 413×413 pink/gold
+"Kangna"/"कंगना" mark) and asked for it in the frontend and as the browser-tab favicon. Copied it
+to `public/kangna-logo.jpg` (used as an `<Image>` in the Sidebar header, replacing the plain
+"Kangna CRM" text-only header, and on the login page, replacing a generic Sparkles-icon
+placeholder) and to `app/icon.jpg` (Next.js's file-convention favicon — auto-generates the
+`<link rel="icon">` tags with no metadata code needed; deleted the old default `app/favicon.ico`
+it supersedes).
+
+**Real bug caught before shipping, not after:** `proxy.ts`'s middleware matcher only excluded the
+old `favicon.ico` from the auth gate, not the new `icon.jpg` — so an unauthenticated request for
+the favicon (e.g. the browser tab icon while sitting on `/login` itself, before any session cookie
+exists) was getting 307-redirected to `/login` instead of returning the image, breaking the
+favicon everywhere it's needed most. Caught by actually curling `/icon.jpg` and checking the
+response was real JPEG bytes (not HTML) rather than trusting that "the file exists" meant "the
+route works" — fixed by adding `icon.jpg`/`apple-icon.jpg` to the matcher's exclusion list.
+
+**Why:** direct user request for branding; the favicon-matcher bug is exactly the kind of thing
+that's invisible in a quick visual check (the tab icon just looks "missing/default" rather than
+obviously broken) but shows up immediately under an actual HTTP status check.
+
+**Verification:** `npx tsc --noEmit`, `npx eslint .` clean, `npm run build` succeeds with
+`/icon.jpg` listed as a real static route. Curled `/icon.jpg` before the middleware fix (307,
+broken) and after (200, real `image/jpeg` bytes). Curled both `/login` (logged out) and `/`
+(logged in, via a real credentials-cookie session) and confirmed `kangna-logo.jpg` appears in the
+rendered HTML both times. Sidebar's collapsed (72px icon-rail) state was deliberately left
+showing no logo — a first attempt to fit a logo image alongside the existing search button in
+that narrow width would have overflowed, so the collapsed state keeps its pre-existing
+icon-only layout unchanged rather than risk a layout regression for a cosmetic addition.
