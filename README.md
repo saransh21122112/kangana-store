@@ -5,7 +5,7 @@ stats, automatic segment lists (birthdays, anniversaries, inactive, top spenders
 outreach, a dashboard, global search & notifications, and settings — built with an Apple-HIG
 inspired UI.
 
-**Live:** [kangana-crm.vercel.app](https://kangana-crm.vercel.app)
+**Live:** [kangnafaizabad.vercel.app](https://kangnafaizabad.vercel.app)
 
 ## Tech Stack
 

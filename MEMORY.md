@@ -2202,3 +2202,75 @@ redeployed to production** (`kangana-crm.vercel.app` still 404s on `/bills`/`/re
 fresh deploy ships this code) — deploying to a live, shared production URL is a visible/hard-to-
 silently-reverse action, so that step is intentionally left for explicit confirmation rather than
 done automatically as part of this fix pass.
+
+**Update:** the user confirmed via `AskUserQuestion`, and Stage 12's changes were pushed
+(`git push origin main`) and deployed (`vercel --prod --yes`), then verified live at
+`kangana-crm.vercel.app` — both `/bills` and `/reports` confirmed 200 with real content via an
+authenticated curl session against the live URL.
+
+---
+
+## Stage 13 — Post-Launch Housekeeping
+
+Several small follow-up requests after the initial launch, each confirmed with the user before any
+destructive/visible action (deleting production data, pushing, deploying) per this project's
+established pattern of asking before irreversible or shared-state changes.
+
+**1. Removed seed/dummy data from the live database.** The user asked to remove seed/dummy data
+but keep real usage. Since local dev and production point at the *exact same* Neon database (no
+separate branch per environment), this was a live production data change. Identified the 25
+original seed customers precisely by reproducing `prisma/seed.ts`'s deterministic mobile-number
+generator (`9${800000000 + i*137 + 1234}`) rather than guessing by name — all 25 matched exactly.
+Also found and included 2 more customers ("Test Duplicate", "Neelam Kapoor") that were leftover QA
+artifacts from earlier E2E testing passes (zero bills, zero purchase, created seconds apart) — not
+real data, confirmed via inspection before deleting. A third customer ("Yashika", real bill, real
+sent WhatsApp message, realistic details) was correctly identified as genuine user activity and
+left untouched. Deleted `MessageLog` and `Bill` rows for the 27 targeted customers first (FK
+constraints are `ON DELETE RESTRICT`), then the `Customer` rows themselves, inside a transaction.
+Kept the OWNER login and all 6 default templates per explicit user instruction. Final state: 1
+customer (Yashika), 1 bill, 1 message log, 1 user, 6 templates. User confirmed via
+`AskUserQuestion` before the delete ran (it was also blocked once by auto-mode's destructive-action
+classifier, requiring the explicit confirmation).
+
+**2. Public signup page — explicitly cancelled.** A signup-page build was started, then the user
+killed the subagent mid-task and said they'd already told Claude not to build it. No files were
+created before the kill (confirmed via `git status`), so nothing needed reverting. Not built —
+noting this so a future session doesn't re-attempt it without re-confirming the user actually wants
+it.
+
+**3. Fixed a real navigation gap.** The user pointed out (with a screenshot) that `/messages/templates`
+had no link anywhere in the UI — Campaigns existed in the Sidebar, but Templates was only reachable
+by typing the URL directly. Added a "Manage Templates" button on the Campaigns page header and a
+"Back to Campaigns" link on the Templates page. Also did a full three-way navigation audit at the
+user's request afterward: every page has an inbound link, every `href`/`Link` target resolves to a
+real route, and every client `fetch("/api/...")` call matches a real route handler — no other gaps
+found.
+
+**4. README overhaul with Mermaid architecture diagrams.** Replaced the untouched default
+`create-next-app` README with real project docs: a system architecture flowchart (client → Vercel
+proxy/cron → route handlers → domain query layer → Prisma → Neon), a sequence diagram tracing a
+WhatsApp send end-to-end, and an ER diagram of the core data model — plus the real tech stack table
+and setup/env-var instructions. **Verified the diagrams actually render**, not just that the syntax
+looked plausible: installed `@mermaid-js/mermaid-cli` and rendered all three blocks to SVG/PNG
+locally, confirming zero parse errors and visually sane layouts, before committing.
+
+**5. Production domain change to `kangnafaizabad.vercel.app`.** The user renamed/aliased the Vercel
+project's production URL from `kangana-crm.vercel.app` to `kangnafaizabad.vercel.app` (done via the
+Vercel dashboard, observed already live when checked via `vercel project ls`). Since `NEXTAUTH_URL`
+is a Vercel "Sensitive" env var (write-only — cannot be read back via `vercel env pull` or `ls`,
+shows as `[SENSITIVE]`), it had to be blind-overwritten rather than diffed: removed and re-added
+for the Production environment as `https://kangnafaizabad.vercel.app`, since NextAuth relies on
+this value for correct callback URLs/cookie behavior. Also updated the README's "Live" link.
+`kangana-crm.vercel.app` itself now 404s (the alias moved, not duplicated) — `kangnafaizabad.vercel.app`
+is the one true production URL going forward.
+
+**Why:** each of these was a direct, specific user request rather than proactive cleanup — this
+project reached "done, live, and being used for real" status after Stage 12, so subsequent work is
+in maintenance/iteration mode rather than the original 10-phase build sequence.
+
+**Verification:** `npx tsc --noEmit`, `npx eslint .` clean throughout (checked after each change).
+Data-cleanup dry-run reported exact match counts before the real delete ran. Nav-audit was a
+grep-based systematic check of every `href`/`Link`/`fetch` call against real route files, not a
+sampling. Mermaid diagrams rendered to actual image files and visually inspected. Domain change
+confirmed via curl against the new URL (200 on `/login`) after the env var update and a fresh
+`vercel --prod` deploy.
