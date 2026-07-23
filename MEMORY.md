@@ -2303,3 +2303,25 @@ rendered HTML both times. Sidebar's collapsed (72px icon-rail) state was deliber
 showing no logo — a first attempt to fit a logo image alongside the existing search button in
 that narrow width would have overflowed, so the collapsed state keeps its pre-existing
 icon-only layout unchanged rather than risk a layout regression for a cosmetic addition.
+
+**Follow-up fix — the previous middleware fix was incomplete.** The user reported (with a
+screenshot) a broken-image icon on the deployed login page instead of the logo. The prior
+verification pass had only grepped the page HTML for `kangna-logo.jpg` — confirming the `<img>`
+tag *referenced* the right path — without ever actually requesting that image URL to confirm it
+*loaded*. It didn't: `proxy.ts`'s matcher had been patched to exclude the exact filenames
+`favicon.ico`/`icon.jpg`, but `public/kangna-logo.jpg` (the file actually used by the Sidebar and
+login page's `<Image>`) wasn't on that list, so it was still hitting the auth gate — an
+unauthenticated request for it (e.g. loading `/login` itself, before any session cookie exists)
+got 307-redirected to `/login`'s HTML instead of returning the image, which browsers render as a
+broken-image placeholder. **Fix:** replaced the filename-by-filename exclusion list with a general
+static-file-extension pattern (`.ico|.jpg|.jpeg|.png|.svg|.webp|.gif`) in the matcher, so this
+class of bug can't recur for the next public asset added without a matcher edit.
+
+**Verification, this time actually checking the thing that broke:** curled `/kangna-logo.jpg` and
+`/icon.jpg` directly (not just grepping for the filename in page HTML) while logged out — both
+now return `200 image/jpeg` with real JPEG bytes (`file` confirms magic bytes, not just a
+text/html response with a `.jpg`-shaped URL). Re-ran the full auth-gating regression check
+afterward to make sure the broadened matcher pattern didn't accidentally exempt something it
+shouldn't: logged-out `/` still 307s to `/login`, logged-out `/api/customers` still 401s, and a
+real credentials login still reaches `/` at 200 — the matcher change only affects static file
+extensions, not the auth logic itself.
