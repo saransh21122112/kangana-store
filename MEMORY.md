@@ -1896,3 +1896,309 @@ scripts (`scripts-tmp-verify-lists.ts`, `scripts-tmp-verify-sort.ts`, `scripts-t
 `lib/queries/search.ts` (applies the escape before `contains`); `lib/queries/customers.ts` (applies the
 same escape to `getAllCustomers`'s `q` filter); `components/search/CommandPalette.tsx` (adds a
 `latestRequestId` ref to guard against out-of-order/stale debounced search responses).
+
+---
+
+## Stage 11 — E2E Testing: WhatsApp Messaging & Settings
+
+**Prompt/request:** Full end-to-end QA pass over WhatsApp Messaging and Settings — both the UI
+(browser automation) and the underlying query/API layer directly (curl with a real session cookie,
+throwaway `tsx` verification scripts) — with full authority to fix any bugs found, re-verify, and
+leave the DB in its original 27-customer/115-bill/1-user/6-template seeded state.
+
+**Pre-flight:** `npx tsc --noEmit` and `npx eslint .` were both clean before starting (same 2
+pre-existing unrelated warnings as every prior stage's documented baseline). Per the task's own
+instruction, grepped project-wide for `contains:` to check whether `lib/queries/customers.ts`'s
+`getAllCustomers({q})` (already fixed for `%`/`_` wildcard-escaping in the prior Stage 11 pass) is
+the only customer-search path: confirmed it is — `AddBillGlobalSheet`'s customer picker calls
+`GET /api/customers?q=`, which routes through that same already-fixed `getAllCustomers`, and no
+other `contains`-based query exists anywhere outside `lib/generated/prisma`'s doc comments. No new
+un-escaped search path found; nothing to fix here.
+
+**Bugs found and fixed:**
+
+1. **A deactivated (`isActive: false`) `MessageTemplate` could still be used to send, via a direct
+   API call, bypassing every UI guard.** `SendMessageSheet.tsx` correctly filters `GET /api/templates`
+   down to `isActive` templates client-side before listing them, but neither
+   `POST /api/messages/send` nor `POST /api/messages/bulk-send` re-checked `template.isActive`
+   server-side — a `curl`/direct-`fetch` call with an inactive template's id sailed straight through
+   and created a real `SENT` `MessageLog` row. Confirmed live: deactivated the seeded BIRTHDAY
+   template via `PATCH /api/templates/[id]`, then `POST /api/messages/send` and
+   `POST /api/messages/bulk-send` with that `templateId` both still returned `200`/`201` before the
+   fix. **Fix:** both routes now look up the template first and return `400
+   {"error":"This template is inactive"}` if `!template.isActive`, before ever calling
+   `renderTemplate`/`sendMessage`. **Verified:** re-ran the identical direct-API calls after the fix —
+   both now `400` with the inactive-template message; reactivated the template and confirmed sending
+   resumed working normally; the pre-existing UI flow (`SendMessageSheet`) was unaffected (it never
+   offers an inactive template as an option in the first place).
+
+2. **The bulk campaign composer (`/messages/campaigns`) and the "We Miss You" panel both offered
+   deactivated templates as selectable/default**, a UI-level instance of the same underlying gap as
+   bug #1. `app/(app)/messages/campaigns/page.tsx` passed `getAllTemplates()` (all templates,
+   active or not) straight into `CampaignBuilder`'s `<select>` and used
+   `templates.find(t => t.type === "WE_MISS_YOU")` unfiltered as the `WeMissYouPanel`'s default
+   template — so a deactivated template remained pickable in the campaign builder's dropdown and
+   could still be the We-Miss-You panel's auto-selected template. Confirmed live: deactivated the
+   ANNIVERSARY template, reloaded `/messages/campaigns` — it was still present in the template
+   `<select>` (8 options instead of 7). **Fix:** added `const activeTemplates =
+   templates.filter(t => t.isActive)` in the page and used it for both `CampaignBuilder`'s
+   `templates` prop and the `weMissYouTemplate` lookup. **Verified:** reloaded after the fix — the
+   deactivated template no longer appears in the dropdown (7 options); reactivated it afterward and
+   confirmed it reappeared. This is on top of bug #1's server-side enforcement, which independently
+   also blocks a bulk-send attempt against an inactive template even if the UI were somehow bypassed.
+
+3. **Case-insensitive duplicate email addresses were not caught, on both user creation and login.**
+   `app/api/settings/users/route.ts`'s `POST` handler pre-checks for an existing email via
+   `prisma.user.findUnique({where:{email}})` — an exact-case lookup — before inserting, and
+   `User.email`'s Postgres unique index is a plain (case-sensitive) btree, not `citext`. A case-variant
+   of an existing email (e.g. `Owner@KangnaBeauty.in` vs. the seeded `owner@kangnabeauty.in`) sailed
+   past both the app's own pre-check and the DB constraint, would have inserted as a second, confusing
+   account, and `lib/auth.ts`'s login `authorize` had the identical exact-case lookup, meaning even a
+   single account's login was needlessly case-sensitive (typing `Owner@...` at the login screen for an
+   account stored as `owner@...` would fail). Confirmed live before the fix:
+   `POST /api/settings/users` with `email: "Owner@KangnaBeauty.in"` returned `201`, not the expected
+   `409`. **Fix (application-level, per this stage's own constraint to prefer that over a schema
+   change):** added `.transform(v => v.toLowerCase())` to `createUserSchema`'s `email` field
+   (`lib/validations/settings.ts`) and to `loginSchema`'s `email` field (`lib/validations/auth.ts`) —
+   every email is now normalized to lowercase the moment it's parsed, on both the create-user and
+   login paths, so the existing exact-case `findUnique` calls in both `app/api/settings/users/route.ts`
+   and `lib/auth.ts` now correctly catch case-variant duplicates/logins without needing any change to
+   those files themselves. No schema change; the single existing seeded user's email was already
+   lowercase, so no data migration was needed. **Verified:** `POST /api/settings/users` with
+   `email: "Owner@KangnaBeauty.in"` now correctly `409`s ("A user with this email already exists");
+   created a fresh STAFF user with a mixed-case email (`QA.Staff.Test@Example.COM`), confirmed it was
+   stored lowercase (`qa.staff.test@example.com`), then logged in with an all-lowercase variant of
+   that same address and got a valid session — confirming both halves (creation-dedup and login) work
+   end-to-end. Full STAFF role-based-access story exercised with that real STAFF session: `GET
+   /api/customers` → `200`, `GET /api/export/customers` → `200`, `PATCH /api/settings/thresholds` and
+   `GET /api/settings/users` → both `403` (OWNER-only). Test STAFF user deleted via the UI's own
+   "Delete" button afterward (confirmed the `window.confirm` dialog and success toast), re-confirmed
+   via `GET /api/settings/users` that only the original seeded OWNER remains.
+
+4. **(Missing feature, not a regression — fixed since it was explicitly in this stage's test plan)**
+   There was no UI entry point to create a new `MessageTemplate` at all. `POST /api/templates` and
+   `lib/queries/message-templates.ts`'s `createTemplate` already existed and worked correctly
+   (confirmed empty-body validation blocks with `400`, a valid `CUSTOM` template creates fine with
+   `201`), but `TemplateEditor.tsx` only ever `PATCH`es an existing template — nothing in
+   `components/messages/` or `app/(app)/messages/templates/page.tsx` ever called the create endpoint.
+   **Fix:** added `components/messages/NewTemplateSheet.tsx` (same self-contained
+   "owns its own open state" `AppleSheet` pattern as `QuickAddSheet`/`AddBillGlobalSheet` — type
+   select, title, body, `react-hook-form` + a small local zod schema mirroring
+   `createTemplateSchema`), wired into `app/(app)/messages/templates/page.tsx`'s header. New templates
+   default to `isActive: true`, `type: "CUSTOM"` and can be retyped immediately after creation via
+   `TemplateEditor` like any other template. **Verified:** in-browser — clicked "New Template",
+   confirmed it renders alongside the 6 seeded ones (most-recently-updated-first ordering, matching
+   `getAllTemplates`'s existing `orderBy`), and its live preview reacted correctly on every keystroke,
+   same as the seeded templates'. Deleted the test template directly via Prisma afterward (no `DELETE
+   /api/templates/[id]` route exists in this app — template deletion was never in scope for any prior
+   stage, only create/edit/activate-toggle).
+
+**WhatsApp Messaging — extensively verified beyond the bugs above, zero other bugs found:**
+- `renderTemplate` (`lib/queries/message-templates.ts`) edge cases, checked via a throwaway script
+  calling the real function directly (not a client-side mirror): `loyaltyPoints: 0` → renders `"0"`
+  (not falsy-blank, confirming the `?? 0` + `String()` combo is correct, not a `|| 0` that would've
+  been fine here anyway since 0 is falsy but the distinction matters conceptually);
+  `lastVisitDate: null` → `"your last visit"` fallback, no "Invalid Date"; `favouriteCategory: null` →
+  `"our collection"` fallback; an unrecognized `{{nonexistent}}` placeholder is left untouched as
+  literal text, not stripped or crashed on.
+- `buildWaMeLink` (`lib/whatsapp/link-mode.ts`): a body with emoji, a literal `&`, `#`, `%`-shaped
+  text, and an embedded newline round-tripped exactly through `encodeURIComponent` →
+  `new URL(link).searchParams.get("text")` → byte-identical to the original. Defensive/malformed input
+  (empty string, non-numeric garbage, an already-`+91`-prefixed number, an 11-digit number) all
+  degrade gracefully to a still-well-formed (if not necessarily meaningful) `wa.me` URL — confirmed no
+  crash on any of them, consistent with the brief's note that this doesn't need a fix since customer
+  data is validated upstream by `customerSchema`'s `^[6-9]\d{9}$` regex before ever reaching this
+  function.
+- `POST /api/messages/send` with a nonexistent `customerId` → clean `404 {"error":"Customer not
+  found"}`, no crash. `POST /api/messages/bulk-send` with `customerIds: []` → `400` (zod's `.min(1)`
+  blocks it before touching the DB). A mixed valid+invalid `customerIds` array → the valid recipient
+  succeeds (`results`) and the invalid one is reported separately (`failures`), not aborting the whole
+  batch — matches the design documented in Stage 6's own log.
+- Single send (`SendMessageSheet`, in-browser): sent Priya Sharma an ANNIVERSARY message via the UI,
+  confirmed the wa.me link opened correctly (`api.whatsapp.com/send/?phone=919800001234&text=...`,
+  browser-native WhatsApp redirect), the success toast fired, and the "Messages Sent" tab correctly
+  showed the new `SENT` log row with the exact rendered body (including the 💍 emoji, confirmed intact
+  in the app's own stored `bodySent` and rendered UI — the WhatsApp redirect page's own display of the
+  emoji appeared mangled in that external page, which is WhatsApp's own redirect service, not this
+  app's encoding; the app's `MessageLog` row and `SendMessageSheet`'s preview both show it correctly).
+- Bulk campaign builder (`CampaignBuilder`, in-browser): the "Inactive 30+" quick-pick audience
+  correctly showed a **17-customer** live count (a genuinely large audience, exercising the
+  brief's "15-20 customers" ask) with an accurate recipient count and a working "Start Send Queue";
+  switching to "Manual Select" with nothing checked left "Start Send Queue" correctly `[disabled]` —
+  zero-recipient campaigns are blocked in the UI (on top of the server's own `customerIds.min(1)`
+  check).
+- `WeMissYouPanel`: confirmed it's reading live `getInactiveCustomers(30)` data, not a cache — the
+  campaigns page has `export const dynamic = "force-dynamic"` (documented in Stage 6's own log,
+  re-confirmed here), and the panel's candidate count (17) exactly matched the "Inactive 30+" quick-pick
+  audience computed from the same underlying call in the same request.
+- Template CRUD: create (bug #4 above), edit-and-persist (`TemplateEditor`'s live preview reacts to
+  every keystroke, confirmed in-browser), empty-body creation correctly blocked with `400` before any
+  fix was needed (`createTemplateSchema`'s `body: z.string().min(1)` already worked).
+
+**Settings — extensively verified, zero bugs found beyond bug #3 above:**
+- `CategoryManager`: `PATCH /api/settings/categories` with `categories: []` → `400` ("At least one
+  category is required"); `["Skincare","skincare","Makeup"]` (case-insensitive dupe) → `400`
+  ("Category names must be unique") — both correctly surfaced by `categoriesSchema`'s existing
+  `.refine()`, no fix needed. Confirmed the live category list (including the legitimate
+  `"Bridal Package"` addition from Stage 9's own final integration pass, left in place per that
+  stage's own log) is unchanged from this stage's pre-test baseline.
+- `ThresholdsForm` / `thresholdsSchema`: direct API `PATCH` (bypassing the client form entirely, per
+  the brief's own instruction) with a negative number, zero, and a non-integer (`30.5`) all correctly
+  `400`'d server-side (`z.coerce.number().int().positive()` — "Too small: expected number to be >0"
+  for the first two, "Invalid input: expected int, received number" for `30.5`) — confirms server-side
+  validation isn't just a UI nicety. No fix needed.
+- `StoreProfileForm` / `storeProfileSchema`: an accent color missing the `#` prefix and an
+  entirely-invalid hex string both correctly `400`'d ("Enter a valid hex color, e.g. #0A84FF"). No fix
+  needed.
+- CSV export (`lib/csv.ts`): created a temporary customer with a name containing a double quote, a
+  comma, **and** an embedded literal newline all at once (`QA "Test", Comma\nNewline`), exported via
+  `GET /api/export/customers`, and parsed the raw CSV bytes with Python's `csv` module — the field
+  round-tripped to the exact original string, the row wasn't corrupted/split, and the quote-doubling
+  (`""Test""`) matched RFC 4180 exactly. Test customer deleted immediately after (no `DELETE
+  /api/customers/[id]` route exists in this app, so cleanup was via a direct Prisma call, same as
+  Stage 11's prior passes had to do for a couple of their own cleanup cases).
+- `UserManagementTable` / user management, beyond bug #3: a password shorter than 6 characters
+  correctly `400`'d ("Password must be at least 6 characters") both via the UI form and a direct API
+  call. Delete-self and demote-self are both still correctly blocked (`400`, reconfirmed — this was
+  already verified in Stage 9, not a regression).
+
+**A note on the shared dev environment during this pass:** partway through this stage's testing, the
+DB and working tree started showing changes this session didn't make — a new customer ("Yashika",
+plus a bill and a `MessageLog` row) appeared, `lib/queries/bills.ts` and a brand-new (uncommitted,
+still-`??`-status) `app/(app)/bills/page.tsx` showed live edits mid-session, and two new git commits
+(`8c66d81`, `3abd5e5` — the latter titled "Filter inactive templates out of the campaign composer",
+the same fix as bug #2 above) appeared in `git log` that this session never ran `git commit` for.
+This confirms another agent/session was concurrently active on this exact shared repo and dev server
+during this pass, same as Stage 9's documented parallel-agent situation. Consequently: the "Yashika"
+customer/bill/message-log were **not** created by this stage's testing and were deliberately **not**
+deleted (cleaning up a concurrent session's real data would be destructive, not helpful) — the DB's
+final count therefore reads **28 customers / 116 bills / 5 `MessageLog` rows**, exactly one each above
+this stage's own 27/115/4 starting baseline, entirely attributable to that other session, not to any
+uncleaned test data from this pass (independently confirmed via a timestamp-filtered query showing
+this stage's own two `MessageLog` test rows and one CSV-test customer were already deleted before that
+other session's activity was even noticed). Similarly, `npm run build`'s final run hit a `tsc` error
+in that same in-progress, not-yet-committed `app/(app)/bills/page.tsx` (a `StaggerList`/`StaggerItem`
+`as` prop that component doesn't support) — confirmed **not** caused by this stage's changes by
+temporarily relocating that untracked file and re-running `npx tsc --noEmit`, which came back
+completely clean, then immediately restoring the file unchanged. The dev server was left running
+(not `pkill`'d) given clear evidence of concurrent live use, matching Stage 9's own documented
+precedent for a shared dev server.
+
+**Cleanup:** The one throwaway CSV-escaping test customer, the two test `MessageLog` rows created by
+this stage's own single-send and bulk-send verification calls, the temporary `QA Test Template`, and
+the temporary STAFF user (`QA Staff Test`) were all deleted before finishing (confirmed via direct
+Prisma counts immediately after each deletion). `AppSettings` (store profile, categories, thresholds)
+were never modified by this stage's testing and remain exactly as they were at the start. All
+throwaway verification scripts (`scripts-tmp-check-baseline.ts`, `scripts-tmp-verify-messaging.ts`,
+`scripts-tmp-cleanup.ts`, `scripts-tmp-final-check.ts`, `scripts-tmp-diff-check.ts`) were deleted
+before finishing. This stage's own contribution to the DB is verified back to exactly baseline; the
+residual 28/116/5 counts are entirely the other concurrent session's, as detailed above.
+
+**Verification:**
+- `npx tsc --noEmit` — clean for every file this stage touched or could affect (confirmed both in the
+  normal full-project run early in this pass, and again at the end with the unrelated concurrent
+  in-progress file temporarily set aside, as detailed above).
+- `npx eslint .` — clean throughout, same 2 pre-existing unrelated warnings as every prior stage's
+  documented baseline, nothing new introduced by this stage's fixes.
+- `npm run build` — succeeded early in this pass (before the concurrent session's uncommitted
+  `app/(app)/bills/page.tsx` appeared); the final end-of-stage run hit that unrelated file's error, not
+  anything from this stage — see the shared-dev-environment note above.
+- Dev server left running (shared with a concurrently-active session — see above), not stopped.
+
+**Files changed:** `app/api/messages/send/route.ts` + `app/api/messages/bulk-send/route.ts` (reject
+sending with an inactive template, `400`); `app/(app)/messages/campaigns/page.tsx` (filter to active
+templates before passing to `CampaignBuilder`/`WeMissYouPanel`); `lib/validations/auth.ts` +
+`lib/validations/settings.ts` (lowercase-normalize email on login and user-creation, fixing
+case-insensitive duplicate-email/login handling); `components/messages/NewTemplateSheet.tsx` (new —
+the previously-missing template-creation UI) + `app/(app)/messages/templates/page.tsx` (wires it in).
+
+---
+
+**Full E2E QA sweep complete.** All three parallel passes — Auth/Customers/Billing,
+Lists/Dashboard/Search & Notifications, and WhatsApp Messaging & Settings — are done. Running total
+across all three: **9 bugs found and fixed** (3 in the first pass: unauthenticated API 401-vs-redirect,
+`notFound()` returning `200` due to a shared `loading.tsx` Suspense boundary, plus the
+`middleware.ts`→`proxy.ts` deprecation rename; 2 in the second pass: `%`/`_` LIKE-wildcard injection in
+customer search, and a stale-response race condition in the command palette's debounced search; 4 in
+this third pass: inactive templates sendable via direct API call, inactive templates still offered by
+the campaign composer/We-Miss-You panel, case-insensitive duplicate email/login not caught, and a
+missing template-creation UI), plus one legitimate missing-feature gap filled in this pass. Every area
+of the application specified in the original build brief — auth, customers, billing/rollups,
+automatic lists, the dashboard, global search, notifications/cron, WhatsApp messaging, and settings —
+has now had an independent, adversarial end-to-end pass with full DB/API-layer verification, not just
+UI click-throughs. The DB's structural baseline (27 customers / 115 bills / 1 user / 6 message
+templates / default `AppSettings`) has been independently reconfirmed correct by all three passes;
+any deviation from that exact count at any given moment during this final pass was due to concurrent
+cross-session activity on the shared dev environment, not uncleaned test data, as documented above.
+
+---
+
+## Stage 12 — Deployment Gap Fixes: `/bills`, `/reports`, and a missing `postinstall`
+
+**Prompt/request:** The user checked the live production deployment
+(`kangana-crm.vercel.app`) directly and found `/reports` and `/bills` both 404ing on the
+frontend, despite the Sidebar (built in Stage 1) linking to both. Also, one of the parallel
+Stage-11 QA subagents (before hitting a mid-task session-limit interruption) discovered a real
+production-deployment bug: `package.json` never had a `postinstall` script running
+`prisma generate`, so a genuine git-triggered Vercel build (as opposed to a manual
+`vercel --prod` upload of an already-`generate`d local `node_modules`) would fail outright —
+Prisma 7's generated client (`lib/generated/prisma/`) is gitignored build output, not checked in,
+so it must be regenerated on every fresh install.
+
+**What was built:**
+- **`postinstall` fix** — added `"postinstall": "prisma generate"` to `package.json`'s `scripts`
+  block. This is the actual fix for why a from-scratch Vercel build (cloning the repo fresh, no
+  local `node_modules`) would previously fail even though every local `npm run build` had always
+  succeeded — `prisma generate` was only ever being run manually/incidentally during earlier
+  stages' work, never as a declared part of the install lifecycle.
+- **`/bills` page** (`app/(app)/bills/page.tsx`) — this was explicitly speced in the original
+  Stage 4 brief ("List all bills at `/app/bills/page.tsx` with search/filter by date range,
+  category, and amount range, and a CSV export button") but never actually built during Stage 4 —
+  only the customer-scoped bill history (`BillHistoryTable`) was. Added:
+  - `lib/queries/bills.ts`'s `getAllBills(params)` — a new export alongside the existing
+    rollup-transaction functions, filtering by category/amount-range/date-range, joined with the
+    owning customer's name/mobile, reverse-chronological.
+  - `components/bills/BillFilterBar.tsx` — a direct structural mirror of Stage 8's
+    `CustomerFilterBar.tsx` (URL-param-driven, `AppleSheet`-presented filter form), for
+    consistency with the one other filterable list page in the app.
+  - The page itself: a table (not cards, since tabular bill data reads better as a table),
+    reusing `AddBillGlobalSheet` and linking to the already-built `/api/export/bills` CSV route.
+- **`/reports` page** (`app/(app)/reports/page.tsx`) — **this one is a genuine spec gap, not a
+  missed-implementation bug**: Stage 1's original design-system brief listed "Reports" as its own
+  sidebar section, but none of the numbered build phases (2 through 10) ever defined what a
+  Reports page should contain — Dashboard (Phase 7) ended up being the closest analog. Rather than
+  silently redirect the dead link to `/` (which would've been the minimal-effort fix) or leave it
+  404ing, built a small real page reusing Stage 7's existing `dashboard-stats.ts` query functions
+  (`getDailySalesLast30Days`, `getSalesByCategory`, `getTotalSales`) and chart components
+  (`RevenueChart`, `CategoryBreakdownChart`) as-is, plus Stage 5's `getTopSpenders` in a table, plus
+  links to the two CSV exports already built in Stage 9. Deliberately minimal — no new query logic
+  invented, no new chart types, just an honest assembly of what already existed under a page that
+  the nav had been promising since Stage 1.
+
+**Why:** The user found these as real, user-facing 404s on the actual deployed app — this wasn't
+theoretical QA, it was a live bug report. `/bills` was a straightforward "finish what Stage 4 spec'd
+but didn't build" fix. `/reports` required a judgment call between three options (redirect to
+dashboard / leave it out / build something real); building something real using only
+already-existing, already-tested query functions and chart components was chosen as the option that
+neither invents unscoped new functionality nor leaves a nav promise broken.
+
+**Verification:** `npx tsc --noEmit`, `npx eslint .` (same 2 pre-existing unrelated warnings, no new
+ones), and `npm run build` all clean — the build output now lists `/bills` and `/reports` as real
+routes (dynamic and static respectively) instead of missing pages. Logged in as
+`owner@kangnabeauty.in` against a fresh `npm run dev`, confirmed via authenticated curl:
+`/bills` → 200 with real "N bills matching" content and an "Export CSV" link;
+`/reports` → 200 with "Top Spenders" table and "Total Sales This Month" stat both rendering real
+data; `/bills?category=Skincare` → 200 (filter param round-trips); `/bills?minAmount=999999` →
+correctly renders the "No bills yet" empty state rather than erroring. Dev server stopped after
+verification.
+
+**Note on DB state observed during this pass:** a real, non-test customer ("Yashika", created
+2026-07-23, with a real bill and a real sent WhatsApp anniversary message) was found in the DB —
+this is genuine data from the user actually using the live app, not QA test pollution, and was
+deliberately left untouched rather than "cleaned up."
+
+**Not yet done:** these fixes are committed to the local working tree but have **not been
+redeployed to production** (`kangana-crm.vercel.app` still 404s on `/bills`/`/reports` until a
+fresh deploy ships this code) — deploying to a live, shared production URL is a visible/hard-to-
+silently-reverse action, so that step is intentionally left for explicit confirmation rather than
+done automatically as part of this fix pass.

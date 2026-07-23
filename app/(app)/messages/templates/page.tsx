@@ -1,5 +1,6 @@
 import { getAllTemplates } from "@/lib/queries/message-templates"
 import { TemplateEditor } from "@/components/messages/TemplateEditor"
+import { NewTemplateSheet } from "@/components/messages/NewTemplateSheet"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { MessageSquare } from "lucide-react"
 
@@ -15,12 +16,15 @@ export default async function MessageTemplatesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Message Templates</h1>
-        <p className="text-sm text-muted-foreground">
-          Edit the wording sent for each message type. Changes apply the next time a message of
-          that type is sent.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Message Templates</h1>
+          <p className="text-sm text-muted-foreground">
+            Edit the wording sent for each message type. Changes apply the next time a message of
+            that type is sent.
+          </p>
+        </div>
+        <NewTemplateSheet />
       </div>
 
       {templates.length === 0 ? (

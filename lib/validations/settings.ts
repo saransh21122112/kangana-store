@@ -47,10 +47,26 @@ export const thresholdsSchema = z.object({
 
 export type ThresholdsInput = z.infer<typeof thresholdsSchema>;
 
-/** Create-user form (Settings → Users → Add User). */
+/**
+ * Create-user form (Settings → Users → Add User).
+ *
+ * `email` is lowercased on input — `User.email`'s Postgres unique index is
+ * case-sensitive by default (no citext column), so without normalizing here
+ * a case-variant of an existing email (e.g. `Owner@kangnabeauty.in` vs
+ * `owner@kangnabeauty.in`) would sail past the app's own pre-check
+ * (`findUnique({where:{email}}))` in `app/api/settings/users/route.ts`,
+ * which is also an exact-case lookup) and insert as a second, confusingly
+ * separate account. Chosen as an application-level fix (normalize before
+ * store/query) rather than a schema-level `citext` column change, per this
+ * stage's own constraint to prefer that when possible.
+ */
 export const createUserSchema = z.object({
   name: z.string().min(1, "Name is required").max(120),
-  email: z.string().min(1, "Email is required").email("Enter a valid email address"),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Enter a valid email address")
+    .transform((v) => v.toLowerCase()),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.enum(["OWNER", "STAFF"]),
 });

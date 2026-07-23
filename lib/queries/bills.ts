@@ -199,3 +199,47 @@ export async function deleteBill(id: string): Promise<DeleteBillResult> {
 export async function getBillById(id: string) {
   return prisma.bill.findUnique({ where: { id } });
 }
+
+export interface GetAllBillsParams {
+  /** Exact match against `category`. */
+  category?: string;
+  /** Inclusive lower bound on `amount`. */
+  minAmount?: number;
+  /** Inclusive upper bound on `amount`. */
+  maxAmount?: number;
+  /** Inclusive lower bound on `date`. */
+  dateFrom?: Date;
+  /** Inclusive upper bound on `date`. */
+  dateTo?: Date;
+}
+
+/**
+ * Global bill list (`/bills`), reverse-chronological, joined with the
+ * owning customer's name/mobile for display. All filters AND together and
+ * are all optional, mirroring `getAllCustomers`'s filter-object shape from
+ * Stage 8 for consistency.
+ */
+export async function getAllBills(params: GetAllBillsParams = {}) {
+  const { category, minAmount, maxAmount, dateFrom, dateTo } = params;
+
+  const where: Prisma.BillWhereInput = {};
+  if (category) where.category = category;
+  if (minAmount !== undefined || maxAmount !== undefined) {
+    where.amount = {
+      ...(minAmount !== undefined ? { gte: minAmount } : {}),
+      ...(maxAmount !== undefined ? { lte: maxAmount } : {}),
+    };
+  }
+  if (dateFrom !== undefined || dateTo !== undefined) {
+    where.date = {
+      ...(dateFrom !== undefined ? { gte: dateFrom } : {}),
+      ...(dateTo !== undefined ? { lte: dateTo } : {}),
+    };
+  }
+
+  return prisma.bill.findMany({
+    where,
+    orderBy: { date: "desc" },
+    include: { customer: { select: { id: true, name: true, mobileNumber: true } } },
+  });
+}
