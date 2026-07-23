@@ -62,7 +62,14 @@ export default async function CampaignsPage() {
     },
   ]
 
-  const weMissYouTemplate = templates.find((t) => t.type === "WE_MISS_YOU") ?? null
+  // Only active templates should be selectable from the campaign composer —
+  // an `isActive: false` template must not be sendable, single or bulk (the
+  // API routes also enforce this server-side as belt-and-suspenders, but
+  // filtering here keeps a deactivated template from even appearing as an
+  // option in the first place).
+  const activeTemplates = templates.filter((t) => t.isActive)
+
+  const weMissYouTemplate = activeTemplates.find((t) => t.type === "WE_MISS_YOU") ?? null
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,7 +82,7 @@ export default async function CampaignsPage() {
       </div>
 
       <CampaignBuilder
-        templates={templates.map((t) => ({ id: t.id, title: t.title, type: t.type }))}
+        templates={activeTemplates.map((t) => ({ id: t.id, title: t.title, type: t.type }))}
         audiences={audiences}
         allCustomers={allCustomers.map((c) => ({ id: c.id, name: c.name, mobileNumber: c.mobileNumber }))}
       />
