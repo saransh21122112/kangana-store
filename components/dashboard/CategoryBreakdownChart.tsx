@@ -18,20 +18,22 @@ const currencyFormatter = new Intl.NumberFormat("en-IN", {
 })
 
 /**
- * Fixed, consistent category color palette. Reuses the Stage 1 status
- * tokens (`--accent`/`--success`/`--warning`/`--danger`/`--vip`) plus two
- * extra fixed hex swatches matching `Avatar`'s palette (already chosen to
- * be legible in both light and dark mode) so this never runs out of
- * distinct colors even if new bill categories are added later.
+ * Fixed, consistent category color palette. Reuses the Stage 14 theme
+ * tokens (`--accent`/`--gold`/`--success`/`--warning`/`--danger`) plus two
+ * extra fixed hex swatches matching `Avatar`'s warm palette (already chosen
+ * to be legible in both light and dark mode) so this never runs out of
+ * distinct colors even if new bill categories are added later. `--vip` was
+ * dropped in favor of `--gold` directly since Stage 14 made them the same
+ * color — keeping both would be a redundant slot.
  */
 const CATEGORY_COLORS = [
   "var(--accent)",
+  "var(--gold)",
   "var(--success)",
   "var(--warning)",
   "var(--danger)",
-  "var(--vip)",
+  "#6B4A6E",
   "#5AC8FA",
-  "#FFD60A",
 ]
 
 /**

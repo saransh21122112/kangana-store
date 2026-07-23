@@ -19,18 +19,21 @@ function hashString(input: string): number {
 }
 
 /**
- * Palette chosen to be legible with white text and to feel at home next to
- * the Apple accent/status colors, without being the same jarring hues.
+ * Stage 14: warm rose/gold/mauve/plum tones drawn from the same beauty/
+ * jewellery palette as the CSS variable tokens (rather than the old
+ * blue/green/purple Apple-system hues), so avatars feel cohesive with the
+ * rest of the theme instead of clashing with it. All chosen to stay legible
+ * with white initials text.
  */
 const PALETTE = [
-  "#0A84FF",
-  "#34C759",
-  "#FF9F0A",
-  "#FF3B30",
-  "#AF52DE",
-  "#FF2D55",
-  "#5AC8FA",
-  "#FFD60A",
+  "#C4326B", // rose (brand accent)
+  "#B8862E", // antique gold
+  "#8E4A6B", // plum
+  "#A85C3B", // terracotta
+  "#6B4A6E", // mauve-purple
+  "#C2185B", // deep pink
+  "#9C6B2E", // bronze
+  "#7A3B52", // wine
 ]
 
 function getInitials(name: string): string {

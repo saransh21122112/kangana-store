@@ -36,7 +36,7 @@ export function EmptyState({
       <div className="flex flex-col gap-1">
         <p className="text-base font-semibold tracking-tight text-foreground">{title}</p>
         {description && (
-          <p className="max-w-sm text-sm text-gray-600 dark:text-gray-400">{description}</p>
+          <p className="max-w-sm text-sm text-muted-foreground">{description}</p>
         )}
       </div>
       {ctaLabel && onCtaClick && (

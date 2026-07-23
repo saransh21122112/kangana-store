@@ -58,7 +58,7 @@ export default function LoginPage() {
             className="size-14 rounded-2xl object-cover shadow-apple-card"
             priority
           />
-          <h1 className="text-xl font-semibold tracking-tight text-foreground">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
             Kangna CRM
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -66,7 +66,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <AppleCard>
+        <AppleCard className="relative overflow-hidden">
+          <div className="gradient-hairline absolute inset-x-0 top-0 h-[3px]" />
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="flex flex-col gap-4"

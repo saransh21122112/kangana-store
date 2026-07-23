@@ -81,7 +81,7 @@ export function SettingsTabs({
           <div className="flex flex-col gap-4 max-w-md">
             <div>
               <p className="text-base font-semibold tracking-tight text-foreground">Export Data</p>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p className="text-sm text-muted-foreground">
                 Download your full customer list or billing history as a CSV file, ready to open
                 in Excel or Google Sheets.
               </p>
