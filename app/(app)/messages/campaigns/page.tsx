@@ -1,3 +1,6 @@
+import Link from "next/link"
+import { FileEdit } from "lucide-react"
+
 import { getAllTemplates } from "@/lib/queries/message-templates"
 import { getAllCustomers } from "@/lib/queries/customers"
 import {
@@ -8,6 +11,8 @@ import {
 } from "@/lib/queries/customer-lists"
 import { CampaignBuilder, type AudienceOption } from "@/components/messages/CampaignBuilder"
 import { WeMissYouPanel } from "@/components/messages/WeMissYouPanel"
+import { AppleButton } from "@/components/apple/AppleButton"
+import { ICON_PROPS } from "@/lib/icon-map"
 
 // See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
 // Next statically prerenders this page at build time, baking in whatever
@@ -73,12 +78,20 @@ export default async function CampaignsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Campaigns</h1>
-        <p className="text-sm text-muted-foreground">
-          Send templated WhatsApp messages to a group of customers. Each recipient&apos;s message opens
-          in WhatsApp for you to send — nothing goes out automatically.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Campaigns</h1>
+          <p className="text-sm text-muted-foreground">
+            Send templated WhatsApp messages to a group of customers. Each recipient&apos;s message opens
+            in WhatsApp for you to send — nothing goes out automatically.
+          </p>
+        </div>
+        <Link href="/messages/templates">
+          <AppleButton variant="secondary">
+            <FileEdit {...ICON_PROPS} size={18} />
+            Manage Templates
+          </AppleButton>
+        </Link>
       </div>
 
       <CampaignBuilder
