@@ -1,0 +1,17 @@
+node_modules
+.next
+.git
+.vercel
+.env
+.env.local
+.env.*.local
+lib/generated
+npm-debug.log*
+*.tsbuildinfo
+.DS_Store
+.playwright-mcp
+coverage
+.agents
+.claude
+.windsurf
+MEMORY.md

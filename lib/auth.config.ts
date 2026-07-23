@@ -13,6 +13,15 @@ import type { NextAuthConfig } from "next-auth";
  */
 export const authConfig: NextAuthConfig = {
   secret: process.env.NEXTAUTH_SECRET,
+  // Auth.js only auto-trusts the incoming request's Host header in `next
+  // dev`, or when it detects a known platform (e.g. Vercel, via the VERCEL
+  // env var it sets automatically). Under `next start` (production mode)
+  // anywhere else — which is exactly what `docker run`/`docker compose`
+  // does for local/self-hosted use — every request without this flag fails
+  // with "UntrustedHost" and login 500s, even when NEXTAUTH_URL is set
+  // correctly. Found and fixed while verifying the new Dockerfile actually
+  // logs in successfully, not just that `next build` completes.
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",

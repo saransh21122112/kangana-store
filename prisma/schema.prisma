@@ -1,0 +1,147 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Customer {
+  id                  String    @id @default(cuid())
+  name                String
+  mobileNumber        String    @unique
+  birthday            DateTime?
+  anniversary         DateTime?
+  areaLocality        String?
+  gender              Gender?
+  customerSince       DateTime  @default(now())
+  loyaltyPoints       Int       @default(0)
+  favouriteCategory   String?
+  notes               String?
+  bills               Bill[]
+  messagesLog         MessageLog[]
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  totalPurchaseAmount Float     @default(0)
+  totalVisits         Int       @default(0)
+  averageBillValue    Float     @default(0)
+  lastVisitDate       DateTime?
+
+  @@index([lastVisitDate])
+  @@index([totalPurchaseAmount])
+  @@index([birthday])
+  @@index([anniversary])
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  UNSPECIFIED
+}
+
+model Bill {
+  id           String    @id @default(cuid())
+  billNo       String    @unique
+  date         DateTime  @default(now())
+  amount       Float
+  category     String
+  customer     Customer  @relation(fields: [customerId], references: [id])
+  customerId   String
+  createdAt    DateTime  @default(now())
+
+  @@index([date])
+  @@index([category])
+}
+
+model MessageTemplate {
+  id        String   @id @default(cuid())
+  type      MessageType
+  title     String
+  body      String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum MessageType {
+  BIRTHDAY
+  ANNIVERSARY
+  FESTIVAL
+  NEW_ARRIVALS
+  MONTHLY_OFFER
+  WE_MISS_YOU
+  CUSTOM
+}
+
+model MessageLog {
+  id          String       @id @default(cuid())
+  customer    Customer     @relation(fields: [customerId], references: [id])
+  customerId  String
+  type        MessageType
+  bodySent    String
+  status      MessageStatus @default(PENDING)
+  sentAt      DateTime?
+  createdAt   DateTime     @default(now())
+
+  @@index([status])
+  @@index([type])
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  FAILED
+  DELIVERED
+  READ
+}
+
+model OwnerNotification {
+  id          String   @id @default(cuid())
+  type        String
+  message     String
+  isRead      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(OWNER)
+  createdAt DateTime @default(now())
+}
+
+enum Role {
+  OWNER
+  STAFF
+}
+
+// --- Stage 9 addition ------------------------------------------------------
+// The ONE schema exception in this project's build: every prior stage was
+// told not to touch schema.prisma, specifically to avoid stepping on the
+// datasource/generator blocks and existing models. Stage 9 (Settings) needs
+// genuinely persisted app-wide settings (store profile, categories,
+// thresholds) and there is no existing table that can hold them without a
+// migration, so this single new model was added — additive only, no
+// existing model/datasource/generator block touched. See MEMORY.md's
+// "Stage 9 — Settings" section for the full rationale.
+model AppSettings {
+  id                  String   @id @default("singleton")
+  storeName           String   @default("Kangna Beauty & Jewellery")
+  logoUrl             String?
+  accentColor         String   @default("#0A84FF")
+  categories          String[] @default(["Jewellery - Gold", "Jewellery - Diamond", "Jewellery - Silver", "Beauty Services", "Skincare", "Makeup", "Other"])
+  inactiveThreshold30 Int      @default(30)
+  inactiveThreshold60 Int      @default(60)
+  inactiveThreshold90 Int      @default(90)
+  updatedAt           DateTime @updatedAt
+}
