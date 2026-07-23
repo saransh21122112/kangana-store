@@ -2325,3 +2325,155 @@ afterward to make sure the broadened matcher pattern didn't accidentally exempt 
 shouldn't: logged-out `/` still 307s to `/login`, logged-out `/api/customers` still 401s, and a
 real credentials login still reaches `/` at 200 — the matcher change only affects static file
 extensions, not the auth logic itself.
+
+---
+
+## Stage 14 — Beauty-Shop Visual Redesign
+
+**Prompt/request:** The Stage 1 Apple Health/Settings-style palette (near-white `#F5F5F7`, cold
+gray borders, Apple blue accent) read as generic productivity SaaS, not a beauty & makeup +
+jewellery shop. Re-skin the design tokens to a warm rose/gold palette grounded in the real
+`public/kangna-logo.jpg` mark (pink/rose + antique-gold ornate flourish), add a display serif for
+brand/heading moments, and introduce one restrained signature element — all **local-only, not
+deployed**, purely a token/font/className re-skin with no layout, IA, component-API, or
+functionality changes.
+
+**Token system landed on (exact hex values):**
+
+*Light mode* — `--background:#FBF3EF` `--card:#FFFFFF` `--foreground:#2B1620`
+`--muted-foreground:#7D5C61` `--border:#F0DCD8` `--secondary`/`--muted:#F6E9E5`
+`--accent:#C4326B` (`--accent-foreground:#FFFFFF`) `--destructive:#C23B2E`
+`--success:#2E8558` (fg `#FFFFFF`) `--warning:#D98324` (fg `#2B1620`)
+`--danger:#C23B2E` (fg `#FFFFFF`) `--vip`/`--gold:#B8862E` (fg `#2B1620`)
+`--ring:#C4326B`. `--primary`/`--sidebar-*` repointed from neutral `oklch` grays to the same warm
+foreground/background/border/accent hexes.
+
+*Dark mode* — `--background:#1A1014` `--card:#241820` `--foreground:#F5E6E8`
+`--muted-foreground:#C9A8AE` `--border:#3A2530` `--secondary`/`--muted:#2E1F26`
+`--accent:#E8578E` `--destructive`/`--danger:#E8574A` `--success:#4CBA82`
+`--warning:#E8A23C` `--vip`/`--gold:#D4AF5A` `--ring:#E8578E`. Every bright dark-mode swatch
+(`--accent-foreground`, `--danger-foreground`, `--success-foreground`, `--warning-foreground`,
+`--vip`/`--gold-foreground`) uses one shared dark-ink `#1C0F14` rather than white — see contrast
+results below for why.
+
+New tokens: `--gold`/`--gold-foreground` (wired through `@theme inline` as `--color-gold`/
+`--color-gold-foreground`, usable as `bg-gold`/`text-gold`/etc.). `--vip` now equals `--gold` in
+both modes (gold = highest tier is the obvious read for a jewellery-adjacent business; the old
+Apple-system purple `#AF52DE`/`#BF5AF2` is gone). `--shadow-card` changed from a neutral
+`rgb(0 0 0 / …)` shadow to a warm-toned `rgb(120 60 50 / …)` (light) / `rgb(10 4 6 / …)` (dark)
+shadow for a boutique-catalog softness instead of a cold SaaS drop-shadow.
+
+**Contrast-check results (WCAG, computed by hand from sRGB→linear luminance, not eyeballed):**
+- Light `--accent` (`#C4326B`) vs white text: **5.23:1** — passes 4.5:1.
+- Light `--danger`/`--destructive` (`#C23B2E`) vs white text: **5.30:1** — passes. Hue pulled
+  ~29° away from `--accent` (accent hue ≈337°, danger hue ≈5°) so the two read as clearly
+  distinct rose-vs-red rather than near-duplicate pinks, per the brief's explicit check.
+- Light `--gold`/`--vip` (`#B8862E`) vs white text: only **3.24:1** (fails) → used dark text
+  (`#2B1620`) instead: **5.24:1** — passes.
+- Light `--success` (`#2F8F5B` as originally suggested) vs white text computed to only **4.04:1**
+  (fails 4.5) → darkened to `#2E8558`: **4.55:1** — passes.
+- Light `--muted-foreground` (`#8A6B70` as originally suggested) vs `--background` computed to
+  **4.34:1** (fails) → darkened to `#7D5C61`: **5.36:1** against background, **5.87:1** against
+  white cards — passes both.
+- Light `--warning` (`#D98324`) vs dark text (`#2B1620`): **5.83:1** — passes.
+- Dark `--foreground` (`#F5E6E8`) vs `--background` (`#1A1014`): **15.4:1**.
+- Dark `--accent` (`#E8578E`) vs white text: only **3.40:1** (fails) → vs the shared dark-ink
+  (`#1C0F14`): **5.52:1** — passes. Same story for dark `--danger` (white **3.56:1** fail → ink
+  **5.26:1** pass), `--success` (white **2.43:1** fail → ink **7.67:1** pass), `--warning` (white
+  fails badly → ink **8.57:1** pass), `--gold`/`--vip` (white **2.08:1** fail → ink **8.94:1**
+  pass) — this is why every bright dark-mode swatch converged on one shared ink color instead of
+  white, rather than tuning each foreground separately.
+- Dark `--danger` (`#E8574A`) hue kept ~28° from dark `--accent` (`#E8578E`) for the same
+  distinct-colors reason as light mode.
+
+**Font pairing:** Added **Playfair Display** (weights 500/600/700) via `next/font/google` in
+`app/layout.tsx` as a new `--font-display` CSS variable, alongside the existing Inter
+(`--font-sans`, unchanged). Wired into `app/globals.css`'s `@theme inline` the same way
+`--font-sans` already was, so `font-display` became a usable Tailwind utility. Applied via
+`font-display` class **only** to: every page's `<h1>` title (Dashboard, Customers, Bills, Lists,
+Reports, Settings, New Customer, Customer profile, Campaigns, Message Templates), the Sidebar's
+"Kangna CRM" wordmark, and the login page's "Kangna CRM" heading. **Not** applied to shadcn's own
+`font-heading` token (still `var(--font-sans)`, i.e. Inter) — that drives Card/Sheet/Dialog title
+text (e.g. the Add Bill sheet), which stays Inter per the brief's "don't apply to anything but the
+named 3 spots" instruction, deliberately narrower than repointing `font-heading` itself would have
+been.
+
+**Signature element — thin rose-to-gold gradient hairline** (`.gradient-hairline` utility class in
+`globals.css`, `linear-gradient(90deg, var(--accent), var(--gold))`): applied as
+- a short (48–56px, `w-14`/`w-12`) left-aligned underline beneath every page `<h1>` (all 10 pages
+  listed above, plus the customer-profile name heading),
+- a 3px top-border accent on the login page's `AppleCard` (the one genuinely "hero" surface on
+  that page),
+- a 2px top-border accent on **only the first/primary StatTile** of the dashboard's stat row (the
+  "Total Sales" card) — decided against putting it on all 7 StatTiles in the grid, since a full row
+  of gradient top-borders read as busy/repetitive rather than a single memorable signature; the
+  other 6 tiles stay plain.
+
+**Cascading token consumers checked (per the brief's explicit ask):**
+- `RevenueChart.tsx`/`CategoryBreakdownChart.tsx` already read `var(--accent)`/`var(--success)`/
+  etc. directly — no hardcoded hex needed changing there, confirmed by re-reading both files.
+  `CategoryBreakdownChart`'s `CATEGORY_COLORS` array *did* hardcode two extra swatches
+  (`#5AC8FA`/`#FFD60A`) for categories beyond the 5 status tokens; swapped one slot to
+  `var(--gold)` (dropping the now-redundant `var(--vip)` slot, since `--vip` and `--gold` are the
+  same color post-redesign) and re-tinted the other hardcoded swatch to a warm plum (`#6B4A6E`).
+- `components/apple/Avatar.tsx` **did** hardcode its own 8-color hash palette
+  (`#0A84FF`/`#34C759`/`#FF9F0A`/`#FF3B30`/`#AF52DE`/`#FF2D55`/`#5AC8FA`/`#FFD60A` — old Apple
+  system blue/green/orange/red/purple/pink/cyan/yellow). Replaced with 8 warm rose/gold/mauve/
+  plum/terracotta/bronze/wine tones so avatars now feel drawn from the same palette as the rest of
+  the theme instead of clashing.
+- `components/apple/StatTile.tsx` and `EmptyState.tsx` and `SettingsTabs.tsx` and 7 page-level
+  subtitle `<p>` tags hardcoded Tailwind's default `text-gray-600 dark:text-gray-400` instead of
+  the `--muted-foreground` token — these were exactly the kind of "remaining pale/cold-gray
+  surface" the verification checklist calls out, so all were swapped to `text-muted-foreground`.
+- Three spots hardcoded `text-white` on a `bg-accent` surface instead of reading
+  `--accent-foreground` (Sidebar's "Add Bill" button, and the small filter-count badges in
+  `CustomerFilterBar`/`BillFilterBar`): fixed to `text-accent-foreground` — this mattered
+  concretely because dark mode's `--accent-foreground` is now dark ink, not white (see contrast
+  results above), so the hardcoded white would have gone illegible-ish (~3.4:1) in dark mode.
+- `--destructive`/`--primary`/`--secondary` (shadcn base tokens, used by `components/ui/button.tsx`,
+  `badge.tsx`, `dropdown-menu.tsx`, `avatar.tsx`) were also repointed from neutral `oklch` grays to
+  the same warm hex values as `--foreground`/`--danger`, even though the brief's bullet list didn't
+  name them explicitly — left as cold neutral gray, they'd have been exactly the kind of leftover
+  pale surface the verification step is meant to catch, since these shadcn primitives back some of
+  the app's dropdown/badge components.
+
+**What was NOT touched:** layout/IA, corner radii, component prop signatures, `lib/queries/*`, any
+API route, any business logic. `--chart-1..5` tokens were left as their original neutral `oklch`
+grayscale — grepped for usage and confirmed nothing in the app actually renders with them (both
+chart components use the named status tokens via `var(--accent)` etc. directly instead).
+
+**Files changed:** `app/globals.css` (full token rewrite, `--font-display` wiring, `.gradient-
+hairline` utility), `app/layout.tsx` (Playfair Display import + variable), `components/apple/
+Avatar.tsx` (palette), `components/dashboard/CategoryBreakdownChart.tsx` (`CATEGORY_COLORS`),
+`components/apple/StatTile.tsx` + `EmptyState.tsx` (muted-foreground), `components/settings/
+SettingsTabs.tsx` (muted-foreground), `components/layout/Sidebar.tsx` (wordmark font, Add Bill
+button text color), `components/customers/CustomerFilterBar.tsx` + `components/bills/
+BillFilterBar.tsx` (badge text color), `components/dashboard/StatTilesRow.tsx` (hero StatTile
+gradient top-border), `app/login/page.tsx` (heading font, card gradient top-border), and the
+`<h1>`/subtitle block in all 10 `app/(app)/**/page.tsx` route files (Dashboard, Customers, Bills,
+Lists, Reports, Settings, New Customer, Customer profile, Campaigns, Message Templates).
+
+**Verification:**
+- `npx tsc --noEmit` — clean, no errors.
+- `npx eslint .` — clean, same 2 pre-existing unrelated warnings as before this stage (`settings`
+  unused var in the dashboard page, `_params` unused in `lib/whatsapp/cloud-mode.ts`), 0 new
+  errors/warnings.
+- Contrast checks above done by hand (sRGB→linear-luminance WCAG formula), not eyeballed; every
+  failing pair identified was adjusted before landing on the final values.
+- **Could not get a live Playwright screenshot pass this stage**: the `:3000` dev server the
+  system prompt described as already running was not actually reachable when checked
+  (`curl localhost:3000` refused the connection, and no `next dev`/`node` process matching it was
+  in the process list) — it appears to have already stopped before this stage's work began, not
+  something this session's edits caused. A same-project second `next dev` instance on `:3001` was
+  attempted for isolated screenshotting per the brief's suggestion, but Next.js refused it
+  ("Another next dev server is already running" — it detects by project directory, not port, so a
+  second instance can't coexist even on a different port). Killed that failed `:3001` attempt.
+  Multiple subsequent attempts to start `npm run dev` fresh on `:3000` (both plain background `&`
+  and the `run_in_background` tool option) were **blocked by the auto-mode permission classifier**
+  and did not run. Net effect: **this stage's visual changes were verified by re-reading every
+  edited file and the full final `globals.css`/contrast math above, not by an actual browser
+  screenshot** — flagging this explicitly since it's a deviation from the brief's step 3. The user
+  should run `npm run dev` themselves to see the result live and should sanity-check Dashboard/
+  Customers/Bills/Settings/Login/Customer-profile in both light and dark mode.
+- **Not deployed** — purely local per explicit user instruction. No `npm run build`, no `vercel`/
+  `git push` command was run, `vercel.json` untouched.

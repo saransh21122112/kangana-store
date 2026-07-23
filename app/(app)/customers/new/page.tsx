@@ -33,8 +33,9 @@ export default function NewCustomerPage() {
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">New Customer</h1>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">New Customer</h1>
+        <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
+        <p className="mt-2 text-sm text-muted-foreground">
           Register a new customer profile.
         </p>
       </div>

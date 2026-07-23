@@ -78,7 +78,7 @@ export function Sidebar({ className }: SidebarProps) {
               className="size-7 shrink-0 rounded-md object-cover"
               priority
             />
-            <span className="truncate text-sm font-semibold tracking-tight text-foreground">
+            <span className="truncate font-display text-base font-semibold tracking-tight text-foreground">
               Kangna CRM
             </span>
           </Link>
@@ -104,7 +104,7 @@ export function Sidebar({ className }: SidebarProps) {
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-white shadow-apple-card transition-opacity hover:opacity-90",
+                "flex w-full items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-apple-card transition-opacity hover:opacity-90",
                 collapsed && "justify-center px-0"
               )}
               title="Add Bill"

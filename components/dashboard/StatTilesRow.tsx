@@ -92,7 +92,8 @@ export function StatTilesRow({
   return (
     <StaggerList className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <StaggerItem>
-        <AppleCard className="flex flex-col gap-3">
+        <AppleCard className="relative flex flex-col gap-3 overflow-hidden">
+          <div className="gradient-hairline absolute inset-x-0 top-0 h-[2px]" />
           <div className="flex items-start justify-between gap-4">
             <StatTile
               label="Total Sales"

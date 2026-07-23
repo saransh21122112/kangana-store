@@ -28,8 +28,9 @@ export default async function MessageTemplatesPage() {
             <ArrowLeft {...ICON_PROPS} size={14} />
             Back to Campaigns
           </Link>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Message Templates</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">Message Templates</h1>
+          <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
+          <p className="mt-2 text-sm text-muted-foreground">
             Edit the wording sent for each message type. Changes apply the next time a message of
             that type is sent.
           </p>

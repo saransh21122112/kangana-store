@@ -10,6 +10,10 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  /* Display serif, scoped to page <h1> titles / wordmark / login heading
+     only (applied via the `font-display` utility) — body copy, forms, and
+     shadcn's own `font-heading` (card/sheet/dialog titles) stay on Inter. */
+  --font-display: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -58,34 +62,40 @@
   --color-danger-foreground: var(--danger-foreground);
   --color-vip: var(--vip);
   --color-vip-foreground: var(--vip-foreground);
+
+  /* Secondary/luxury accent sampled from the logo's gold flourish. VIP
+     reuses this directly (gold = highest tier is the obvious read for a
+     jewellery-adjacent brand). */
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
 }
 
 :root {
-  /* Apple Health/Wallet/Settings-inspired near-white surface, on top of the
-     shadcn "base-nova" tokens above. --background is the app canvas,
-     --card is the raised white surface. */
-  --background: #f5f5f7;
-  --foreground: oklch(0.145 0 0);
+  /* Stage 14 beauty/jewellery re-skin: warm blush-ivory surface (replaces
+     the Stage 1 Apple Health cold near-white), grounded in the Kangna logo's
+     rose + antique-gold palette. --background is the app canvas, --card is
+     the raised white surface. */
+  --background: #fbf3ef;
+  --foreground: #2b1620;
   --card: #ffffff;
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: #2b1620;
   --popover: #ffffff;
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  /* --accent is the single swappable brand accent (Apple blue by default;
-     later a jewellery brand could swap this to gold/rose). It also drives
-     shadcn's own hover/focus highlight (e.g. dropdown-menu item focus),
-     which mirrors macOS's native blue selection highlight. */
-  --accent: #0a84ff;
+  --popover-foreground: #2b1620;
+  --primary: #2b1620;
+  --primary-foreground: #fbf3ef;
+  --secondary: #f6e9e5;
+  --secondary-foreground: #2b1620;
+  --muted: #f6e9e5;
+  --muted-foreground: #7d5c61;
+  /* --accent is the single swappable brand accent — rose, sampled from the
+     logo's mark. Drives shadcn's own hover/focus highlight too (e.g.
+     dropdown-menu item focus). ~5.2:1 contrast against white text. */
+  --accent: #c4326b;
   --accent-foreground: #ffffff;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #e5e5ea;
-  --input: #e5e5ea;
-  --ring: #0a84ff;
+  --destructive: #c23b2e;
+  --border: #f0dcd8;
+  --input: #f0dcd8;
+  --ring: #c4326b;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -93,74 +103,93 @@
   --chart-5: oklch(0.269 0 0);
   --radius: 0.625rem;
   --sidebar: #ffffff;
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: #e5e5ea;
-  --sidebar-ring: #0a84ff;
+  --sidebar-foreground: #2b1620;
+  --sidebar-primary: #2b1620;
+  --sidebar-primary-foreground: #fbf3ef;
+  --sidebar-accent: #f6e9e5;
+  --sidebar-accent-foreground: #2b1620;
+  --sidebar-border: #f0dcd8;
+  --sidebar-ring: #c4326b;
 
-  /* System status colors (Apple HIG dynamic colors, light variants) */
-  --success: #34c759;
+  /* System status colors, warm-shifted (light variants). Success darkened
+     slightly from the brief's suggested #2F8F5B to clear 4.5:1 against
+     white; danger's hue pulled a few degrees toward orange so it reads
+     distinct from --accent's rose rather than a near-duplicate pink. */
+  --success: #2e8558;
   --success-foreground: #ffffff;
-  --warning: #ff9f0a;
-  --warning-foreground: #1c1c1e;
-  --danger: #ff3b30;
+  --warning: #d98324;
+  --warning-foreground: #2b1620;
+  --danger: #c23b2e;
   --danger-foreground: #ffffff;
-  --vip: #af52de;
-  --vip-foreground: #ffffff;
+  /* VIP = gold (highest tier, jewellery-adjacent read) instead of the old
+     Apple-system purple. */
+  --vip: #b8862e;
+  --vip-foreground: #2b1620;
 
-  /* Soft card shadow used by AppleCard (low-opacity, Apple-Settings style) */
-  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.04), 0 2px 8px 0 rgb(0 0 0 / 0.04);
+  /* Secondary/luxury accent, sampled from the logo's flourish scrollwork. */
+  --gold: #b8862e;
+  --gold-foreground: #2b1620;
+
+  /* Warm-toned card shadow (low-opacity warm brown/rose, not neutral black)
+     for a boutique-catalog softness rather than a cold SaaS drop-shadow. */
+  --shadow-card: 0 1px 2px 0 rgb(120 60 50 / 0.06), 0 2px 8px 0 rgb(120 60 50 / 0.07);
 }
 
 .dark {
-  /* Apple Health/Wallet-style dark mode: near-black canvas, slightly-raised
-     dark gray card surfaces, hairline borders via low-opacity white. */
-  --background: #000000;
-  --foreground: oklch(0.985 0 0);
-  --card: #1c1c1e;
-  --card-foreground: oklch(0.985 0 0);
-  --popover: #1c1c1e;
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: #0a84ff;
-  --accent-foreground: #ffffff;
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 12%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #0a84ff;
+  /* Warm dark mode (not pure black): deep aubergine-black canvas, slightly
+     raised warm-dark card surfaces, warm hairline borders. */
+  --background: #1a1014;
+  --foreground: #f5e6e8;
+  --card: #241820;
+  --card-foreground: #f5e6e8;
+  --popover: #241820;
+  --popover-foreground: #f5e6e8;
+  --primary: #f5e6e8;
+  --primary-foreground: #1a1014;
+  --secondary: #2e1f26;
+  --secondary-foreground: #f5e6e8;
+  --muted: #2e1f26;
+  --muted-foreground: #c9a8ae;
+  --accent: #e8578e;
+  /* Bright saturated accent fails ~4.5:1 with white text on a dark bg
+     (~3.4:1); a dark "ink" foreground clears it comfortably (~5.5:1). Used
+     the same ink for every bright dark-mode swatch below for a cohesive
+     "jewel tone + dark ink" look. */
+  --accent-foreground: #1c0f14;
+  --destructive: #e8574a;
+  --border: #3a2530;
+  --input: #3a2530;
+  --ring: #e8578e;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: #1c1c1e;
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: #0a84ff;
+  --sidebar: #241820;
+  --sidebar-foreground: #f5e6e8;
+  --sidebar-primary: #f5e6e8;
+  --sidebar-primary-foreground: #1a1014;
+  --sidebar-accent: #2e1f26;
+  --sidebar-accent-foreground: #f5e6e8;
+  --sidebar-border: #3a2530;
+  --sidebar-ring: #e8578e;
 
-  /* System status colors (Apple HIG dynamic colors, dark variants) */
-  --success: #30d158;
-  --success-foreground: #04170a;
-  --warning: #ff9f0a;
-  --warning-foreground: #1c1c1e;
-  --danger: #ff453a;
-  --danger-foreground: #ffffff;
-  --vip: #bf5af2;
-  --vip-foreground: #1c0630;
+  /* System status colors, warm-shifted + brightened for dark-bg contrast.
+     Danger's hue kept several degrees apart from --accent's rose so the two
+     stay visually distinct even though both are warm. */
+  --success: #4cba82;
+  --success-foreground: #1c0f14;
+  --warning: #e8a23c;
+  --warning-foreground: #1c0f14;
+  --danger: #e8574a;
+  --danger-foreground: #1c0f14;
+  --vip: #d4af5a;
+  --vip-foreground: #1c0f14;
 
-  --shadow-card: 0 1px 2px 0 rgb(0 0 0 / 0.4), 0 2px 12px 0 rgb(0 0 0 / 0.35);
+  --gold: #d4af5a;
+  --gold-foreground: #1c0f14;
+
+  --shadow-card: 0 1px 2px 0 rgb(10 4 6 / 0.5), 0 2px 12px 0 rgb(10 4 6 / 0.4);
 }
 
 @layer base {
@@ -180,5 +209,13 @@
      Used by AppleCard in addition to rounded-2xl + border. */
   .shadow-apple-card {
     box-shadow: var(--shadow-card);
+  }
+
+  /* Stage 14 signature element: a thin rose-to-gold hairline echoing the
+     logo's ornate flourish line. Used sparingly — under page <h1> titles
+     (short, left-aligned) and as a top-border accent on a few hero
+     surfaces (login card, primary dashboard StatTile). */
+  .gradient-hairline {
+    background-image: linear-gradient(90deg, var(--accent), var(--gold));
   }
 }

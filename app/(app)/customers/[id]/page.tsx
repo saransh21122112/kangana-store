@@ -46,7 +46,8 @@ export default async function CustomerProfilePage({ params }: PageProps) {
           <div className="flex items-center gap-4">
             <Avatar name={customer.name} size="lg" className="size-14 text-lg" />
             <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-semibold tracking-tight text-foreground">{customer.name}</h1>
+              <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{customer.name}</h1>
+              <div className="gradient-hairline h-0.5 w-12 rounded-full" />
               <div className="flex items-center gap-3">
                 <a
                   href={`tel:${customer.mobileNumber}`}

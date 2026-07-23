@@ -80,8 +80,9 @@ export default async function CampaignsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Campaigns</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">Campaigns</h1>
+          <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
+          <p className="mt-2 text-sm text-muted-foreground">
             Send templated WhatsApp messages to a group of customers. Each recipient&apos;s message opens
             in WhatsApp for you to send — nothing goes out automatically.
           </p>

@@ -52,8 +52,9 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight text-foreground">Visits &amp; Bills</h1>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Visits &amp; Bills</h1>
+          <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
+          <p className="mt-2 text-sm text-muted-foreground">
             {bills.length} bill{bills.length === 1 ? "" : "s"} matching.
           </p>
         </div>

@@ -30,7 +30,7 @@ export function StatTile({ label, value, trend, trendLabel, className }: StatTil
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
-      <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       <span className="text-3xl font-semibold tracking-tight text-foreground">
         {value}
       </span>

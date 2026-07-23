@@ -80,7 +80,7 @@ export function BillFilterBar() {
         <Filter {...ICON_PROPS} size={18} />
         Filters
         {activeCount > 0 && (
-          <span className="ml-1 flex size-5 items-center justify-center rounded-full bg-accent text-xs font-semibold text-white">
+          <span className="ml-1 flex size-5 items-center justify-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
             {activeCount}
           </span>
         )}
