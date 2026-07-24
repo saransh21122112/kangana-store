@@ -8,7 +8,6 @@ import {
   getInactiveCustomers,
 } from "@/lib/queries/customer-lists"
 import { getDashboardStats } from "@/lib/queries/dashboard-stats"
-import { getSettings } from "@/lib/queries/settings"
 import { getLowStockItems } from "@/lib/queries/inventory"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { StatTilesRow } from "@/components/dashboard/StatTilesRow"
@@ -50,7 +49,7 @@ export default async function DashboardPage() {
     redirect("/customers")
   }
 
-  const [stats, birthdays, anniversaries, inactive30, inactive60, inactive90, settings, lowStockItems] =
+  const [stats, birthdays, anniversaries, inactive30, inactive60, inactive90, lowStockItems] =
     await Promise.all([
       getDashboardStats(),
       getBirthdaysThisWeek(),
@@ -58,7 +57,6 @@ export default async function DashboardPage() {
       getInactiveCustomers(30),
       getInactiveCustomers(60),
       getInactiveCustomers(90),
-      getSettings(),
       getLowStockItems(),
     ])
 
