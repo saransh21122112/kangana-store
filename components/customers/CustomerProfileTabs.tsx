@@ -17,9 +17,11 @@ export interface CustomerProfileTabsProps {
   customer: Customer
   bills: Bill[]
   messages: MessageLog[]
+  /** Current user's role — VIEWER never sees the "Edit Details" tab (read-only). */
+  role?: string
 }
 
-const TABS = [
+const BASE_TABS = [
   { value: "visits", label: "Visit History" },
   { value: "messages", label: "Messages Sent" },
   { value: "edit", label: "Edit Details" },
@@ -39,7 +41,10 @@ function formatDate(date: Date | string): string {
  * Stage 6 builds actual sending), Edit Details (CustomerForm wired to the
  * PATCH endpoint).
  */
-export function CustomerProfileTabs({ customer, bills, messages }: CustomerProfileTabsProps) {
+export function CustomerProfileTabs({ customer, bills, messages, role }: CustomerProfileTabsProps) {
+  const isViewer = role === "VIEWER"
+  const isOwner = role === "OWNER"
+  const TABS = isViewer ? BASE_TABS.filter((t) => t.value !== "edit") : BASE_TABS
   const [tab, setTab] = React.useState("visits")
   const router = useRouter()
 
@@ -73,7 +78,9 @@ export function CustomerProfileTabs({ customer, bills, messages }: CustomerProfi
     <div className="flex flex-col gap-4">
       <SegmentedControl options={TABS} value={tab} onChange={setTab} />
 
-      {tab === "visits" && <BillHistoryTable customerId={customer.id} bills={bills} />}
+      {tab === "visits" && (
+        <BillHistoryTable customerId={customer.id} bills={bills} isViewer={isViewer} isOwner={isOwner} />
+      )}
 
       {tab === "messages" && (
         <AppleCard noPadding className="overflow-hidden">
@@ -102,7 +109,7 @@ export function CustomerProfileTabs({ customer, bills, messages }: CustomerProfi
         </AppleCard>
       )}
 
-      {tab === "edit" && (
+      {tab === "edit" && !isViewer && (
         <AppleCard>
           <CustomerForm
             defaultValues={defaultValues}

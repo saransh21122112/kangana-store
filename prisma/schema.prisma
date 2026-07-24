@@ -123,6 +123,7 @@ model User {
 enum Role {
   OWNER
   STAFF
+  VIEWER
 }
 
 // --- Stage 9 addition ------------------------------------------------------

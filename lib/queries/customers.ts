@@ -205,3 +205,23 @@ export async function updateCustomer(
 
   return { ok: true, customer };
 }
+
+/**
+ * Permanently deletes a customer along with all their dependent rows.
+ * `Bill.customerId` and `MessageLog.customerId` are both `onDelete:
+ * Restrict` in the schema, so the Customer row can't be deleted directly
+ * while related Bill/MessageLog rows still reference it — this deletes
+ * those first, inside the same transaction, mirroring the
+ * `TRANSACTION_OPTIONS` convention from `lib/queries/bills.ts` (Neon's
+ * round-trip latency needs looser maxWait/timeout than Prisma's defaults).
+ */
+export async function deleteCustomer(id: string): Promise<void> {
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.messageLog.deleteMany({ where: { customerId: id } });
+      await tx.bill.deleteMany({ where: { customerId: id } });
+      await tx.customer.delete({ where: { id } });
+    },
+    { maxWait: 10_000, timeout: 15_000 }
+  );
+}

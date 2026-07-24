@@ -33,7 +33,7 @@ const sendSchema = z
   });
 
 export async function POST(req: Request) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER"]);
   if (!guard.ok) return guard.response;
 
   const json = await req.json().catch(() => null);

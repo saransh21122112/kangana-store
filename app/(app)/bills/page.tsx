@@ -1,12 +1,15 @@
 import Link from "next/link"
 import { Download, Receipt } from "lucide-react"
 
+import { auth } from "@/lib/auth"
 import { getAllBills } from "@/lib/queries/bills"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleButton } from "@/components/apple/AppleButton"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { BillFilterBar } from "@/components/bills/BillFilterBar"
 import { AddBillGlobalSheet } from "@/components/bills/AddBillGlobalSheet"
+import { DeleteBillButton } from "@/components/bills/DeleteBillButton"
+import { DownloadBillButton } from "@/components/bills/DownloadBillButton"
 import { ICON_PROPS } from "@/lib/icon-map"
 
 function formatCurrency(amount: number): string {
@@ -36,6 +39,10 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 export const dynamic = "force-dynamic"
 
 export default async function BillsPage({ searchParams }: BillsPageProps) {
+  const session = await auth()
+  const isViewer = session?.user.role === "VIEWER"
+  const isOwner = session?.user.role === "OWNER"
+
   const params = await searchParams
 
   const category = firstValue(params.category)
@@ -65,13 +72,17 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
         </div>
         <div className="flex items-center gap-2">
           <BillFilterBar />
-          <a href="/api/export/bills">
-            <AppleButton variant="secondary">
-              <Download {...ICON_PROPS} size={18} />
-              Export CSV
-            </AppleButton>
-          </a>
-          <AddBillGlobalSheet />
+          {!isViewer && (
+            <>
+              <a href="/api/export/bills">
+                <AppleButton variant="secondary">
+                  <Download {...ICON_PROPS} size={18} />
+                  Export CSV
+                </AppleButton>
+              </a>
+              <AddBillGlobalSheet />
+            </>
+          )}
         </div>
       </div>
 
@@ -93,6 +104,7 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3 text-right">Amount</th>
+                <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
@@ -109,6 +121,12 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
                   <td className="px-4 py-3 text-muted-foreground">{bill.category}</td>
                   <td className="px-4 py-3 text-right font-semibold text-foreground">
                     {formatCurrency(bill.amount)}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <DownloadBillButton billId={bill.id} />
+                      {isOwner && <DeleteBillButton billId={bill.id} />}
+                    </div>
                   </td>
                 </tr>
               ))}

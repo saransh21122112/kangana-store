@@ -10,7 +10,7 @@ interface RouteParams {
 }
 
 export async function GET(_req: Request, { params }: RouteParams) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
@@ -59,7 +59,7 @@ export async function PATCH(req: Request, { params }: RouteParams) {
 }
 
 export async function DELETE(_req: Request, { params }: RouteParams) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER"]);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

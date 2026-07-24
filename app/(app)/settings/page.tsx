@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation"
+
 import { auth } from "@/lib/auth"
 import { getSettings } from "@/lib/queries/settings"
 import { prisma } from "@/lib/prisma"
@@ -11,6 +13,9 @@ import type { UserRow } from "@/components/settings/UserManagementTable"
  * that tab entirely for them anyway — fetching it server-side for STAFF
  * would just be wasted work). `middleware.ts` only checks "logged in", not
  * role, so STAFF can reach this route; role-based rendering happens here.
+ * VIEWER is excluded entirely (redirected below) — unlike STAFF, VIEWER has
+ * no legitimate reason to see even the read-only Store Profile/Categories/
+ * Thresholds tabs.
  */
 // See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
 // Next statically prerenders this page at build time and settings/user
@@ -20,6 +25,10 @@ export const dynamic = "force-dynamic"
 export default async function SettingsPage() {
   const session = await auth()
   const isOwner = session?.user?.role === "OWNER"
+
+  if (session?.user.role === "VIEWER") {
+    redirect("/customers")
+  }
 
   const [settings, users] = await Promise.all([
     getSettings(),

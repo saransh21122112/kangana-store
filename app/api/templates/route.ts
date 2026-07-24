@@ -22,7 +22,7 @@ const createTemplateSchema = z.object({
 });
 
 export async function GET() {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
   if (!guard.ok) return guard.response;
 
   const templates = await getAllTemplates();

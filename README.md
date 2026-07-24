@@ -2,8 +2,9 @@
 
 A CRM for a beauty & jewellery store: customer profiles, visit/billing history with live rollup
 stats, automatic segment lists (birthdays, anniversaries, inactive, top spenders), WhatsApp
-outreach, a dashboard, global search & notifications, and settings — built with an Apple-HIG
-inspired UI.
+outreach, per-bill PDF invoices, a dashboard, global search & notifications, and settings — built
+with an Apple-HIG inspired UI. Three roles (OWNER / STAFF / VIEWER) control access: VIEWER is
+strictly read-only, and deleting a bill or customer is OWNER-only.
 
 **Live:** [kangnafaizabad.vercel.app](https://kangnafaizabad.vercel.app)
 
@@ -15,11 +16,13 @@ inspired UI.
 | Styling | Tailwind CSS v4 + shadcn/ui (base-ui) |
 | Database | PostgreSQL (Neon, via Vercel Marketplace) |
 | ORM | Prisma 7 (driver-adapter client, `@prisma/adapter-pg`) |
-| Auth | NextAuth v5 (Credentials provider, JWT sessions, OWNER/STAFF roles) |
+| Auth | NextAuth v5 (Credentials provider, JWT sessions, OWNER/STAFF/VIEWER roles) |
 | Messaging | WhatsApp `wa.me` link-mode (Cloud API stubbed, not implemented) |
 | Forms | react-hook-form + zod (shared client/server validation) |
 | Charts | Recharts |
-| Motion | framer-motion |
+| PDF | `@react-pdf/renderer` (per-bill invoice download) |
+| Motion | framer-motion (`template.tsx` route transitions, list/card stagger) |
+| Testing | Playwright Test (`testing/e2e/`, manual-trigger e2e + automatic CI typecheck/lint/build) |
 | Hosting | Vercel (Functions + Cron) |
 
 ## Architecture
@@ -27,32 +30,35 @@ inspired UI.
 ```mermaid
 flowchart TB
     subgraph client["Browser"]
-        UI["Next.js App Router UI<br/>(Server + Client Components)"]
-        CMDK["⌘K Command Palette"]
+        UI["Next.js App Router UI<br/>(Server + Client Components)<br/>template.tsx route transitions"]
+        CMDK["⌘K / Ctrl+K Command Palette"]
         WA["wa.me links<br/>(opened client-side)"]
+        PDFDL["Bill PDF download<br/>(a[download] → browser)"]
     end
 
     subgraph edge["Vercel"]
-        PROXY["proxy.ts (middleware)<br/>session gate + role redirects"]
+        PROXY["proxy.ts (middleware)<br/>session gate only —<br/>logged in or not, no role logic"]
         CRON["Vercel Cron<br/>08:00 IST daily"]
     end
 
     subgraph app["Next.js Server (Vercel Functions)"]
-        PAGES["App Router Pages<br/>Dashboard · Customers · Bills<br/>Lists · Campaigns · Settings"]
-        API["Route Handlers<br/>/api/customers /api/bills<br/>/api/messages /api/notifications"]
+        PAGES["App Router Pages<br/>Dashboard · Customers · Bills<br/>Lists · Campaigns · Settings<br/>— each redirects STAFF/VIEWER<br/>away from routes it can't use"]
+        API["Route Handlers<br/>/api/customers /api/bills<br/>/api/messages /api/notifications<br/>DELETE bills/customers (OWNER only)"]
+        PDFRT["/api/bills/[id]/pdf<br/>@react-pdf/renderer"]
         CRONRT["/api/cron/daily-check<br/>(CRON_SECRET gated)"]
         AUTH["NextAuth v5<br/>Credentials + bcrypt + JWT"]
-        GUARD["requireRole()<br/>OWNER / STAFF gate"]
+        GUARD["requireRole()<br/>OWNER / STAFF / VIEWER gate<br/>— VIEWER: reads only, no writes"]
     end
 
     subgraph domain["Domain Logic (lib/)"]
-        QCUST["queries/customers.ts"]
-        QBILL["queries/bills.ts<br/>recalculateCustomerRollup()"]
+        QCUST["queries/customers.ts<br/>deleteCustomer() cascades<br/>Bill + MessageLog"]
+        QBILL["queries/bills.ts<br/>recalculateCustomerRollup()<br/>deleteBill()"]
         QLIST["queries/customer-lists.ts<br/>birthdays · anniversaries<br/>inactive · top spenders"]
         QDASH["queries/dashboard-stats.ts"]
         QMSG["queries/message-templates.ts<br/>queries/message-log.ts"]
         QSET["queries/settings.ts"]
         WAM["whatsapp/link-mode.ts<br/>buildWaMeLink()"]
+        PDFLIB["pdf/bill-invoice.tsx<br/>BillInvoiceDocument"]
     end
 
     subgraph data["Data Layer"]
@@ -63,15 +69,19 @@ flowchart TB
     UI -->|"fetch"| API
     UI --> PAGES
     CMDK -->|"/api/search"| API
+    PDFDL -->|"GET"| PDFRT
     PAGES -->|"server-side calls"| QCUST & QBILL & QLIST & QDASH & QSET
 
     UI -.->|"every request"| PROXY
-    PROXY -->|"unauthenticated → /login<br/>authenticated API → 401 JSON"| UI
+    PROXY -->|"unauthenticated → /login<br/>unauthenticated API → 401 JSON"| UI
     PROXY --> AUTH
 
     API --> GUARD
+    PDFRT --> GUARD
     GUARD --> AUTH
     API --> QCUST & QBILL & QMSG & QSET
+    PDFRT --> QBILL
+    PDFRT --> PDFLIB
 
     CRON -->|"Authorization: Bearer CRON_SECRET"| CRONRT
     CRONRT --> QLIST
@@ -105,7 +115,7 @@ sequenceDiagram
     UI->>UI: renderTemplate() — live preview with {{name}}, {{loyaltyPoints}}...
     Owner->>UI: Click "Send via WhatsApp"
     UI->>API: POST { customerId, templateId }
-    API->>Guard: requireRole(["OWNER","STAFF"])
+    API->>Guard: requireRole(["OWNER"])
     Guard-->>API: session ok
     API->>Tpl: renderTemplate(body, customer)
     API->>DB: buildWaMeLink() + create MessageLog (status: SENT)
@@ -193,6 +203,15 @@ NEXTAUTH_URL=http://localhost:3000
 WHATSAPP_MODE=link         # "link" (wa.me) or "api" (Cloud API — not implemented)
 CRON_SECRET=                # protects /api/cron/daily-check
 ```
+
+## Testing
+
+`npx tsc --noEmit` and `npm run lint` run automatically on every push/PR via
+`.github/workflows/ci.yml`. The Playwright e2e suite (`testing/e2e/`, `npm run test:e2e`) runs
+against a real `npm run dev` instance and the real database — there's no separate test DB for this
+app — so it's manual-trigger-only (`.github/workflows/e2e.yml`, run from the GitHub Actions tab),
+never automatically on push. See `testing/e2e/README.md` for the data-safety rules the suite
+follows (throwaway test users, non-destructive delete-flow checks, cleanup guarantees).
 
 ## Deployment
 

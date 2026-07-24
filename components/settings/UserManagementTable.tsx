@@ -27,7 +27,7 @@ export interface UserRow {
   id: string
   name: string
   email: string
-  role: "OWNER" | "STAFF"
+  role: "OWNER" | "STAFF" | "VIEWER"
   createdAt: string | Date
 }
 
@@ -46,7 +46,7 @@ function formatDate(value: string | Date): string {
 
 /** Small inline form rendered inside the "Add User" AppleSheet. */
 function AddUserForm({ onSuccess }: { onSuccess: (user: UserRow) => void }) {
-  const [role, setRole] = React.useState<"OWNER" | "STAFF">("STAFF")
+  const [role, setRole] = React.useState<"OWNER" | "STAFF" | "VIEWER">("STAFF")
   const [serverError, setServerError] = React.useState<string | null>(null)
 
   const {
@@ -122,13 +122,14 @@ function AddUserForm({ onSuccess }: { onSuccess: (user: UserRow) => void }) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="new-user-role">Role</Label>
-        <Select value={role} onValueChange={(val) => setRole(val as "OWNER" | "STAFF")}>
+        <Select value={role} onValueChange={(val) => setRole(val as "OWNER" | "STAFF" | "VIEWER")}>
           <SelectTrigger id="new-user-role" className="w-full">
             <SelectValue placeholder="Select a role" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="STAFF">Staff</SelectItem>
             <SelectItem value="OWNER">Owner</SelectItem>
+            <SelectItem value="VIEWER">Viewer</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -169,9 +170,9 @@ export function UserManagementTable({ initialUsers }: UserManagementTableProps) 
     }
   }
 
-  async function toggleRole(user: UserRow) {
+  async function changeRole(user: UserRow, nextRole: "OWNER" | "STAFF" | "VIEWER") {
     if (user.id === currentUserId) return
-    const nextRole = user.role === "OWNER" ? "STAFF" : "OWNER"
+    if (nextRole === user.role) return
 
     setPendingRoleId(user.id)
     try {
@@ -251,24 +252,31 @@ export function UserManagementTable({ initialUsers }: UserManagementTableProps) 
                     <td className="px-4 py-3">{user.name}</td>
                     <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
                     <td className="px-4 py-3">
-                      <AppleBadge variant={user.role === "OWNER" ? "vip" : "neutral"}>
+                      <AppleBadge
+                        variant={
+                          user.role === "OWNER" ? "vip" : user.role === "STAFF" ? "success" : "neutral"
+                        }
+                      >
                         {user.role}
                       </AppleBadge>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground">{formatDate(user.createdAt)}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-2">
-                        <AppleButton
-                          type="button"
-                          variant="ghost"
-                          size="sm"
+                        <Select
+                          value={user.role}
+                          onValueChange={(val) => changeRole(user, val as "OWNER" | "STAFF" | "VIEWER")}
                           disabled={isSelf || pendingRoleId === user.id}
-                          onClick={() => toggleRole(user)}
                         >
-                          {pendingRoleId === user.id
-                            ? "Updating..."
-                            : `Make ${user.role === "OWNER" ? "Staff" : "Owner"}`}
-                        </AppleButton>
+                          <SelectTrigger className="h-8 w-28 text-sm" aria-label={`Change role for ${user.name}`}>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="STAFF">Staff</SelectItem>
+                            <SelectItem value="OWNER">Owner</SelectItem>
+                            <SelectItem value="VIEWER">Viewer</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <AppleButton
                           type="button"
                           variant="destructive"

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -47,17 +48,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <Image
-            src="/kangna-logo.jpg"
-            alt="Kangna"
-            width={56}
-            height={56}
-            className="size-14 rounded-2xl object-cover shadow-apple-card"
-            priority
-          />
+    <div className="relative flex min-h-dvh w-full items-center justify-center overflow-hidden bg-background px-4">
+      {/* Soft ambient glow behind the card — the only decorative flourish on
+          this page, kept low-opacity so it doesn't compete with the
+          gradient-hairline signature element on the card itself. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 size-[36rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-accent/10 blur-3xl dark:bg-accent/15"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-1/2 top-1/2 size-[22rem] -translate-x-[65%] -translate-y-[35%] rounded-full bg-gold/10 blur-3xl dark:bg-gold/15"
+      />
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: "easeOut" }}
+        className="relative w-full max-w-sm"
+      >
+        <div className="mb-6 flex flex-col items-center gap-3 text-center">
+          <div className="rounded-2xl bg-white p-3 shadow-apple-card">
+            <Image
+              src="/kangna-logo-mark.png"
+              alt="Kangna"
+              width={348}
+              height={159}
+              className="h-14 w-auto"
+              priority
+            />
+          </div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">
             Kangna CRM
           </h1>
@@ -84,7 +104,7 @@ export default function LoginPage() {
                 id="email"
                 type="email"
                 autoComplete="email"
-                className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-ring/50"
                 {...register("email")}
               />
               {errors.email && (
@@ -103,7 +123,7 @@ export default function LoginPage() {
                 id="password"
                 type="password"
                 autoComplete="current-password"
-                className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                className="h-10 rounded-xl border border-border bg-background px-3 text-sm text-foreground outline-none transition-shadow duration-150 focus-visible:ring-2 focus-visible:ring-ring/50"
                 {...register("password")}
               />
               {errors.password && (
@@ -114,24 +134,26 @@ export default function LoginPage() {
             </div>
 
             {formError && (
-              <p
+              <motion.p
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
                 role="alert"
                 className="rounded-xl bg-danger/10 px-3 py-2 text-sm text-danger"
               >
                 {formError}
-              </p>
+              </motion.p>
             )}
 
             <AppleButton
               type="submit"
-              className="mt-2 w-full"
+              className="mt-2 w-full transition-transform duration-150 active:scale-[0.98]"
               disabled={isSubmitting}
             >
               {isSubmitting ? "Signing in…" : "Sign in"}
             </AppleButton>
           </form>
         </AppleCard>
-      </div>
+      </motion.div>
     </div>
   );
 }

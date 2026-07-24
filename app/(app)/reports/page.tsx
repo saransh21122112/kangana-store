@@ -1,5 +1,7 @@
 import { Download } from "lucide-react"
+import { redirect } from "next/navigation"
 
+import { auth } from "@/lib/auth"
 import { getDailySalesLast30Days, getSalesByCategory, getTotalSales } from "@/lib/queries/dashboard-stats"
 import { getTopSpenders } from "@/lib/queries/customer-lists"
 import { AppleCard } from "@/components/apple/AppleCard"
@@ -31,6 +33,15 @@ function formatCurrency(amount: number): string {
 export const dynamic = "force-dynamic"
 
 export default async function ReportsPage() {
+  const session = await auth()
+  const isViewer = session?.user.role === "VIEWER"
+
+  // STAFF is a data-entry-only role — no access to store-wide reports.
+  // See app/(app)/(dashboard)/page.tsx for the matching redirect.
+  if (session?.user.role === "STAFF") {
+    redirect("/customers")
+  }
+
   const [dailySales, categorySales, salesThisMonth, topSpenders] = await Promise.all([
     getDailySalesLast30Days(),
     getSalesByCategory(),
@@ -48,20 +59,22 @@ export default async function ReportsPage() {
             Sales trends, category breakdown, and top customers.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <a href="/api/export/customers">
-            <AppleButton variant="secondary">
-              <Download {...ICON_PROPS} size={18} />
-              Customers CSV
-            </AppleButton>
-          </a>
-          <a href="/api/export/bills">
-            <AppleButton variant="secondary">
-              <Download {...ICON_PROPS} size={18} />
-              Bills CSV
-            </AppleButton>
-          </a>
-        </div>
+        {!isViewer && (
+          <div className="flex items-center gap-2">
+            <a href="/api/export/customers">
+              <AppleButton variant="secondary">
+                <Download {...ICON_PROPS} size={18} />
+                Customers CSV
+              </AppleButton>
+            </a>
+            <a href="/api/export/bills">
+              <AppleButton variant="secondary">
+                <Download {...ICON_PROPS} size={18} />
+                Bills CSV
+              </AppleButton>
+            </a>
+          </div>
+        )}
       </div>
 
       <StatTile label="Total Sales This Month" value={formatCurrency(salesThisMonth)} />

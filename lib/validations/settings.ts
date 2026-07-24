@@ -68,7 +68,7 @@ export const createUserSchema = z.object({
     .email("Enter a valid email address")
     .transform((v) => v.toLowerCase()),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["OWNER", "STAFF"]),
+  role: z.enum(["OWNER", "STAFF", "VIEWER"]),
 });
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
@@ -77,7 +77,7 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 export const updateUserSchema = z
   .object({
     userId: z.string().min(1),
-    role: z.enum(["OWNER", "STAFF"]).optional(),
+    role: z.enum(["OWNER", "STAFF", "VIEWER"]).optional(),
     password: z.string().min(6, "Password must be at least 6 characters").optional(),
   })
   .refine((data) => data.role !== undefined || data.password !== undefined, {

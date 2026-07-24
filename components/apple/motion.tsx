@@ -3,25 +3,10 @@
 import * as React from "react"
 import { motion, type Variants } from "framer-motion"
 
-export interface PageTransitionProps {
-  children: React.ReactNode
-  className?: string
-}
-
-/** Simple fade/slide-up wrapper for route/page content. */
-export function PageTransition({ children, className }: PageTransitionProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
-      className={className}
-    >
-      {children}
-    </motion.div>
-  )
-}
+// App-wide route transitions live in app/(app)/template.tsx (Next.js's
+// `template.tsx` convention), not here — see that file for why an
+// AnimatePresence + `key={pathname}` version of this used to live in this
+// file and was replaced.
 
 const listVariants: Variants = {
   hidden: {},

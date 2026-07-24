@@ -1,5 +1,7 @@
 import { Cake, Heart } from "lucide-react"
+import { redirect } from "next/navigation"
 
+import { auth } from "@/lib/auth"
 import {
   getBirthdaysThisWeek,
   getAnniversariesThisWeek,
@@ -8,7 +10,6 @@ import {
 import { getDashboardStats } from "@/lib/queries/dashboard-stats"
 import { getSettings } from "@/lib/queries/settings"
 import { AppleCard } from "@/components/apple/AppleCard"
-import { PageTransition } from "@/components/apple/motion"
 import { StatTilesRow } from "@/components/dashboard/StatTilesRow"
 import { MiniListCard } from "@/components/dashboard/MiniListCard"
 import { NeedsAttentionCard } from "@/components/dashboard/NeedsAttentionCard"
@@ -38,6 +39,15 @@ export const dynamic = "force-dynamic"
  * run in the browser.
  */
 export default async function DashboardPage() {
+  const session = await auth()
+  // STAFF is a data-entry-only role (add customers, add bills) with no
+  // access to store-wide analytics — the sidebar/bottom-tab-bar already
+  // hide this nav entry for STAFF, this redirect closes the direct-URL
+  // gap the same way the login callback lands everyone on "/" by default.
+  if (session?.user.role === "STAFF") {
+    redirect("/customers")
+  }
+
   const [stats, birthdays, anniversaries, inactive30, inactive60, inactive90, settings] = await Promise.all([
     getDashboardStats(),
     getBirthdaysThisWeek(),
@@ -52,7 +62,7 @@ export default async function DashboardPage() {
   const anniversariesToday = anniversaries.filter((a) => a.daysUntil === 0).length
 
   return (
-    <PageTransition className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <div>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
         <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
@@ -111,6 +121,6 @@ export default async function DashboardPage() {
           inactive90={inactive90.length}
         />
       </div>
-    </PageTransition>
+    </div>
   )
 }

@@ -2,12 +2,14 @@ import { createElement } from "react"
 import { notFound } from "next/navigation"
 import { Phone, MessageCircle } from "lucide-react"
 
+import { auth } from "@/lib/auth"
 import { getCustomerById, getVipCustomerIds } from "@/lib/queries/customers"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { StatTile } from "@/components/apple/StatTile"
 import { Avatar } from "@/components/apple/Avatar"
 import { CustomerBadges } from "@/components/customers/CustomerBadges"
 import { CustomerProfileTabs } from "@/components/customers/CustomerProfileTabs"
+import { DeleteCustomerButton } from "@/components/customers/DeleteCustomerButton"
 import { SendMessageSheet } from "@/components/messages/SendMessageSheet"
 import { getCategoryIcon, ICON_PROPS } from "@/lib/icon-map"
 
@@ -37,6 +39,10 @@ interface PageProps {
 export const dynamic = "force-dynamic"
 
 export default async function CustomerProfilePage({ params }: PageProps) {
+  const session = await auth()
+  const role = session?.user.role
+  const isOwner = role === "OWNER"
+
   const { id } = await params
   const [customer, vipIds] = await Promise.all([getCustomerById(id), getVipCustomerIds()])
 
@@ -80,15 +86,25 @@ export default async function CustomerProfilePage({ params }: PageProps) {
               lastVisitDate={customer.lastVisitDate}
               isVip={vipIds.has(customer.id)}
             />
-            <SendMessageSheet
-              customer={{
-                id: customer.id,
-                name: customer.name,
-                loyaltyPoints: customer.loyaltyPoints,
-                lastVisitDate: customer.lastVisitDate ? customer.lastVisitDate.toISOString() : null,
-                favouriteCategory: customer.favouriteCategory,
-              }}
-            />
+            {/* flex-wrap + shrink-0 on each button: on narrow viewports two
+                buttons ("Delete Customer" + "Send Message") don't fit side
+                by side, and without this the buttons would compress and
+                wrap their own text mid-word instead of the row wrapping
+                them onto separate lines as whole buttons. */}
+            <div className="flex flex-wrap items-center justify-end gap-2 [&>*]:shrink-0">
+              {isOwner && <DeleteCustomerButton customerId={customer.id} customerName={customer.name} />}
+              {isOwner && (
+                <SendMessageSheet
+                  customer={{
+                    id: customer.id,
+                    name: customer.name,
+                    loyaltyPoints: customer.loyaltyPoints,
+                    lastVisitDate: customer.lastVisitDate ? customer.lastVisitDate.toISOString() : null,
+                    favouriteCategory: customer.favouriteCategory,
+                  }}
+                />
+              )}
+            </div>
           </div>
         </div>
 
@@ -123,7 +139,12 @@ export default async function CustomerProfilePage({ params }: PageProps) {
         </AppleCard>
       </div>
 
-      <CustomerProfileTabs customer={customer} bills={customer.bills} messages={customer.messagesLog} />
+      <CustomerProfileTabs
+        customer={customer}
+        bills={customer.bills}
+        messages={customer.messagesLog}
+        role={role}
+      />
     </div>
   )
 }
