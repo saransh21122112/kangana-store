@@ -1,6 +1,8 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { FileEdit } from "lucide-react"
 
+import { auth } from "@/lib/auth"
 import { getAllTemplates } from "@/lib/queries/message-templates"
 import { getAllCustomers } from "@/lib/queries/customers"
 import {
@@ -23,6 +25,16 @@ import { ICON_PROPS } from "@/lib/icon-map"
 export const dynamic = "force-dynamic"
 
 export default async function CampaignsPage() {
+  const session = await auth()
+  // Message sending is OWNER-only (see app/api/messages/send/route.ts and
+  // bulk-send). Neither STAFF nor VIEWER should be able to reach the
+  // composer at all via direct URL — matches the nav hiding in
+  // Sidebar.tsx/BottomTabBar.tsx and the same redirect pattern used by
+  // app/(app)/(dashboard)/page.tsx and app/(app)/reports/page.tsx.
+  if (session?.user.role === "STAFF" || session?.user.role === "VIEWER") {
+    redirect("/customers")
+  }
+
   const [templates, allCustomers, inactive30, topSpenders, birthdays, anniversaries] = await Promise.all([
     getAllTemplates(),
     getAllCustomers(),

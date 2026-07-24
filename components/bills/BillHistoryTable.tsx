@@ -10,12 +10,18 @@ import { AppleButton } from "@/components/apple/AppleButton"
 import { AppleSheet } from "@/components/apple/AppleSheet"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { AddBillForm } from "@/components/bills/AddBillForm"
+import { DeleteBillButton } from "@/components/bills/DeleteBillButton"
+import { DownloadBillButton } from "@/components/bills/DownloadBillButton"
 import { getCategoryIcon, ICON_PROPS } from "@/lib/icon-map"
 import type { Bill } from "@/lib/generated/prisma/client"
 
 export interface BillHistoryTableProps {
   customerId: string
   bills: Bill[]
+  /** VIEWER never sees the "+ Add Bill" trigger (read-only). */
+  isViewer?: boolean
+  /** Only OWNER sees the per-row delete action. */
+  isOwner?: boolean
 }
 
 function formatDate(date: Date | string): string {
@@ -40,7 +46,7 @@ function formatCurrency(amount: number): string {
  * date: "desc" }`, but re-sorts defensively here too since callers could
  * pass unsorted data.
  */
-export function BillHistoryTable({ customerId, bills }: BillHistoryTableProps) {
+export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillHistoryTableProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
 
@@ -51,12 +57,14 @@ export function BillHistoryTable({ customerId, bills }: BillHistoryTableProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-center justify-end">
-        <AppleButton onClick={() => setOpen(true)} variant="secondary">
-          <Plus {...ICON_PROPS} size={16} />
-          Add Bill
-        </AppleButton>
-      </div>
+      {!isViewer && (
+        <div className="flex items-center justify-end">
+          <AppleButton onClick={() => setOpen(true)} variant="secondary">
+            <Plus {...ICON_PROPS} size={16} />
+            Add Bill
+          </AppleButton>
+        </div>
+      )}
 
       <AppleCard noPadding className="overflow-hidden">
         {sortedBills.length === 0 ? (
@@ -82,9 +90,13 @@ export function BillHistoryTable({ customerId, bills }: BillHistoryTableProps) {
                       </span>
                     </div>
                   </div>
-                  <span className="text-sm font-semibold text-foreground">
-                    {formatCurrency(bill.amount)}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatCurrency(bill.amount)}
+                    </span>
+                    <DownloadBillButton billId={bill.id} />
+                    {isOwner && <DeleteBillButton billId={bill.id} />}
+                  </div>
                 </li>
               )
             })}

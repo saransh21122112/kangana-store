@@ -15,7 +15,7 @@ interface RouteParams {
 }
 
 export async function GET(_req: Request, { params }: RouteParams) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

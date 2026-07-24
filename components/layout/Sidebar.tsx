@@ -47,17 +47,37 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
 
 export interface SidebarProps {
   className?: string
+  /** Current user's role, threaded down from the server-component parent
+   * (AppShell -> app/(app)/layout.tsx's `auth()` call) so Sidebar can hide
+   * nav entries VIEWER shouldn't see, without a client-side useSession()
+   * call — mirrors SettingsTabs's prop-driven-filter style. */
+  role?: string
 }
+
+/** Nav item labels hidden entirely for VIEWER — read-only role has no
+ * legitimate use for Settings or Messages/Campaigns. */
+const VIEWER_HIDDEN_LABELS = new Set(["Settings", "Campaigns"])
+
+/** Nav item labels hidden entirely for STAFF — narrowed to a data-entry
+ * role (add/edit customers, add bills) with no access to store-wide
+ * analytics (Dashboard, Reports) or messaging (Campaigns/send). */
+const STAFF_HIDDEN_LABELS = new Set(["Dashboard", "Reports", "Campaigns"])
 
 /**
  * Persistent, collapsible left sidebar shown at desktop breakpoints
  * (see AppShell, which hides this below `md` in favor of BottomTabBar).
  */
-export function Sidebar({ className }: SidebarProps) {
+export function Sidebar({ className, role }: SidebarProps) {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = React.useState(false)
   const { resolvedTheme, setTheme } = useTheme()
   const mounted = useMounted()
+  const isViewer = role === "VIEWER"
+  const isStaff = role === "STAFF"
+  const hiddenLabels = isViewer ? VIEWER_HIDDEN_LABELS : isStaff ? STAFF_HIDDEN_LABELS : null
+  const navItems = hiddenLabels
+    ? SIDEBAR_NAV_ITEMS.filter((item) => !hiddenLabels.has(item.label))
+    : SIDEBAR_NAV_ITEMS
 
   return (
     <aside
@@ -98,26 +118,28 @@ export function Sidebar({ className }: SidebarProps) {
         {!collapsed && <NotificationBell />}
       </div>
 
-      <div className="px-2">
-        <AddBillGlobalSheet
-          trigger={
-            <button
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-apple-card transition-opacity hover:opacity-90",
-                collapsed && "justify-center px-0"
-              )}
-              title="Add Bill"
-            >
-              <Receipt {...ICON_PROPS} size={18} className="shrink-0" />
-              {!collapsed && <span>Add Bill</span>}
-            </button>
-          }
-        />
-      </div>
+      {!isViewer && (
+        <div className="px-2">
+          <AddBillGlobalSheet
+            trigger={
+              <button
+                type="button"
+                className={cn(
+                  "flex w-full items-center gap-2 rounded-xl bg-accent px-3 py-2 text-sm font-medium text-accent-foreground shadow-apple-card transition-opacity hover:opacity-90",
+                  collapsed && "justify-center px-0"
+                )}
+                title="Add Bill"
+              >
+                <Receipt {...ICON_PROPS} size={18} className="shrink-0" />
+                {!collapsed && <span>Add Bill</span>}
+              </button>
+            }
+          />
+        </div>
+      )}
 
       <nav className="flex flex-1 flex-col gap-1 px-2 py-2">
-        {SIDEBAR_NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname === item.href
           const Icon = item.icon
           return (

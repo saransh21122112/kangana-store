@@ -1,6 +1,8 @@
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { MessageSquare, ArrowLeft } from "lucide-react"
 
+import { auth } from "@/lib/auth"
 import { getAllTemplates } from "@/lib/queries/message-templates"
 import { TemplateEditor } from "@/components/messages/TemplateEditor"
 import { NewTemplateSheet } from "@/components/messages/NewTemplateSheet"
@@ -15,6 +17,13 @@ import { ICON_PROPS } from "@/lib/icon-map"
 export const dynamic = "force-dynamic"
 
 export default async function MessageTemplatesPage() {
+  const session = await auth()
+  // Same STAFF/VIEWER exclusion as app/(app)/messages/campaigns/page.tsx —
+  // templates are part of the messaging section, not a standalone read.
+  if (session?.user.role === "STAFF" || session?.user.role === "VIEWER") {
+    redirect("/customers")
+  }
+
   const templates = await getAllTemplates()
 
   return (

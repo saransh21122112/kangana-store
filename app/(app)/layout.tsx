@@ -1,3 +1,4 @@
+import { auth } from "@/lib/auth";
 import { AppShell } from "@/components/layout/AppShell";
 import { CommandPalette } from "@/components/search/CommandPalette";
 
@@ -11,13 +12,15 @@ import { CommandPalette } from "@/components/search/CommandPalette";
  * outside AppShell's own children) so it's reachable from every
  * authenticated screen without threading state through AppShell/Sidebar.
  */
-export default function AppGroupLayout({
+export default async function AppGroupLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await auth();
+
   return (
-    <AppShell>
+    <AppShell role={session?.user.role}>
       <CommandPalette />
       {children}
     </AppShell>

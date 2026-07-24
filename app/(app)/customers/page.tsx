@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Phone, MessageCircle, UserPlus, Users } from "lucide-react"
 
+import { auth } from "@/lib/auth"
 import { getAllCustomers, getVipCustomerIds, type VisitFrequencyBucket } from "@/lib/queries/customers"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleButton } from "@/components/apple/AppleButton"
@@ -43,6 +44,9 @@ function firstValue(value: string | string[] | undefined): string | undefined {
 export const dynamic = "force-dynamic"
 
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
+  const session = await auth()
+  const isViewer = session?.user.role === "VIEWER"
+
   const params = await searchParams
 
   const category = firstValue(params.category)
@@ -79,14 +83,18 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         </div>
         <div className="flex items-center gap-2">
           <CustomerFilterBar />
-          <AddBillGlobalSheet />
-          <QuickAddSheet />
-          <Link href="/customers/new">
-            <AppleButton>
-              <UserPlus {...ICON_PROPS} size={18} />
-              New Customer
-            </AppleButton>
-          </Link>
+          {!isViewer && (
+            <>
+              <AddBillGlobalSheet />
+              <QuickAddSheet />
+              <Link href="/customers/new">
+                <AppleButton>
+                  <UserPlus {...ICON_PROPS} size={18} />
+                  New Customer
+                </AppleButton>
+              </Link>
+            </>
+          )}
         </div>
       </div>
 

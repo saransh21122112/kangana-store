@@ -5,6 +5,9 @@ import { BottomTabBar } from "@/components/layout/BottomTabBar"
 
 export interface AppShellProps {
   children: React.ReactNode
+  /** Current user's role, threaded down from app/(app)/layout.tsx's
+   * `auth()` call so Sidebar can hide role-restricted nav entries. */
+  role?: string
 }
 
 /**
@@ -13,11 +16,11 @@ export interface AppShellProps {
  * controlled purely with Tailwind breakpoints, so there's no layout jump
  * or hydration mismatch when resizing.
  */
-export function AppShell({ children }: AppShellProps) {
+export function AppShell({ children, role }: AppShellProps) {
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-background">
       <div className="hidden md:block">
-        <Sidebar />
+        <Sidebar role={role} />
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -28,7 +31,7 @@ export function AppShell({ children }: AppShellProps) {
         </main>
 
         <div className="fixed inset-x-0 bottom-0 md:hidden">
-          <BottomTabBar />
+          <BottomTabBar role={role} />
         </div>
       </div>
     </div>

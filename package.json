@@ -14,6 +14,7 @@
     "@hookform/resolvers": "^5.4.0",
     "@prisma/adapter-pg": "^7.9.0",
     "@prisma/client": "^7.9.0",
+    "@react-pdf/renderer": "^4.5.1",
     "@tanstack/react-query": "^5.101.4",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",

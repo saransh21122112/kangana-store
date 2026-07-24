@@ -83,14 +83,14 @@ export async function PATCH(req: Request) {
 
   // Prevent an OWNER from demoting themselves and losing access to this
   // page — the app has no re-promotion path once the last OWNER is gone.
-  if (role === "STAFF" && target.id === guard.session.user.id) {
+  if (role !== undefined && role !== "OWNER" && target.id === guard.session.user.id) {
     return NextResponse.json(
       { error: "You can't change your own role away from OWNER" },
       { status: 400 }
     );
   }
 
-  const data: { role?: "OWNER" | "STAFF"; password?: string } = {};
+  const data: { role?: "OWNER" | "STAFF" | "VIEWER"; password?: string } = {};
   if (role !== undefined) data.role = role;
   if (password !== undefined) data.password = await bcrypt.hash(password, 10);
 

@@ -6,7 +6,7 @@ import { getAllNotifications, markAllRead, markOneRead } from "@/lib/queries/not
 
 /** GET /api/notifications — recent notifications (most recent first), for the NotificationBell. */
 export async function GET() {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
   if (!guard.ok) return guard.response;
 
   const notifications = await getAllNotifications();

@@ -24,22 +24,41 @@ const PRIMARY_TABS = [
   { label: "Campaigns", href: "/messages/campaigns", icon: MessageCircle },
 ]
 
-/** Nav items not in the primary tabs — surfaced in the "More" sheet. */
-const MORE_ITEMS = SIDEBAR_NAV_ITEMS.filter(
-  (item) => !PRIMARY_TABS.some((tab) => tab.href === item.href)
-)
+/** Same VIEWER-hidden labels as Sidebar.tsx — kept in sync manually since
+ * this bar duplicates rather than reuses Sidebar's nav-item filtering. */
+const VIEWER_HIDDEN_LABELS = new Set(["Settings", "Campaigns"])
+
+/** Same STAFF-hidden labels as Sidebar.tsx — kept in sync manually. */
+const STAFF_HIDDEN_LABELS = new Set(["Dashboard", "Reports", "Campaigns"])
 
 export interface BottomTabBarProps {
   className?: string
+  /** Current user's role, threaded down from AppShell so VIEWER/STAFF
+   * don't see role-restricted items in the primary tabs or "More" sheet. */
+  role?: string
 }
 
 /**
  * Mobile bottom tab bar: a reduced set of primary destinations plus a
  * "More" tab that opens a sheet with the rest of the sidebar's nav items.
  */
-export function BottomTabBar({ className }: BottomTabBarProps) {
+export function BottomTabBar({ className, role }: BottomTabBarProps) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = React.useState(false)
+  const isViewer = role === "VIEWER"
+  const isStaff = role === "STAFF"
+  const hiddenLabels = isViewer ? VIEWER_HIDDEN_LABELS : isStaff ? STAFF_HIDDEN_LABELS : null
+
+  const primaryTabs = hiddenLabels
+    ? PRIMARY_TABS.filter((tab) => !hiddenLabels.has(tab.label))
+    : PRIMARY_TABS
+
+  /** Nav items not in the primary tabs — surfaced in the "More" sheet. */
+  const moreItems = SIDEBAR_NAV_ITEMS.filter(
+    (item) =>
+      !PRIMARY_TABS.some((tab) => tab.href === item.href) &&
+      (!hiddenLabels || !hiddenLabels.has(item.label))
+  )
 
   return (
     <>
@@ -49,7 +68,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
           className
         )}
       >
-        {PRIMARY_TABS.map((tab) => {
+        {primaryTabs.map((tab) => {
           const isActive = pathname === tab.href
           const Icon = tab.icon
           return (
@@ -91,7 +110,7 @@ export function BottomTabBar({ className }: BottomTabBarProps) {
             <NotificationBell />
           </SheetHeader>
           <div className="flex flex-col gap-1 px-4 pb-4">
-            {MORE_ITEMS.map((item) => {
+            {moreItems.map((item) => {
               const Icon = item.icon
               return (
                 <Link

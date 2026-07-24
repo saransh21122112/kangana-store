@@ -11,7 +11,7 @@ import { searchCustomers } from "@/lib/queries/search";
  * limit.
  */
 export async function GET(req: Request) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
   if (!guard.ok) return guard.response;
 
   const { searchParams } = new URL(req.url);

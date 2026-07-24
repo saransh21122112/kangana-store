@@ -3,14 +3,14 @@ import { z } from "zod";
 
 import { requireRole } from "@/lib/auth/requireRole";
 import { customerUpdateSchema } from "@/lib/validations/customer";
-import { getCustomerById, updateCustomer } from "@/lib/queries/customers";
+import { deleteCustomer, getCustomerById, updateCustomer } from "@/lib/queries/customers";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
 export async function GET(_req: Request, { params }: RouteParams) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
@@ -54,4 +54,19 @@ export async function PATCH(req: Request, { params }: RouteParams) {
   }
 
   return NextResponse.json({ customer: result.customer });
+}
+
+export async function DELETE(_req: Request, { params }: RouteParams) {
+  const guard = await requireRole(["OWNER"]);
+  if (!guard.ok) return guard.response;
+
+  const { id } = await params;
+  const existing = await getCustomerById(id);
+  if (!existing) {
+    return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+  }
+
+  await deleteCustomer(id);
+
+  return NextResponse.json({ success: true });
 }

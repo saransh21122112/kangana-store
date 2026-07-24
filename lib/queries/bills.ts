@@ -200,6 +200,13 @@ export async function getBillById(id: string) {
   return prisma.bill.findUnique({ where: { id } });
 }
 
+/** Like `getBillById`, but joined with the full owning `Customer` row —
+ * needed for the PDF invoice (customer name/mobile) rather than just the
+ * bill's own fields. */
+export async function getBillWithCustomerById(id: string) {
+  return prisma.bill.findUnique({ where: { id }, include: { customer: true } });
+}
+
 export interface GetAllBillsParams {
   /** Exact match against `category`. */
   category?: string;
