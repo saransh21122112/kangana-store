@@ -49,6 +49,11 @@ interface ListsPageProps {
   searchParams: Promise<{ view?: string; days?: string }>
 }
 
+// See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
+// Next statically prerenders this page at build time and these
+// birthday/anniversary/inactive/top-spender lists never update in production.
+export const dynamic = "force-dynamic"
+
 export default async function ListsPage({ searchParams }: ListsPageProps) {
   const params = await searchParams
   const view: ViewValue = isViewValue(params.view) ? params.view : "birthdays"

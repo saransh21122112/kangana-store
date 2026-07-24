@@ -12,6 +12,11 @@ import type { UserRow } from "@/components/settings/UserManagementTable"
  * would just be wasted work). `middleware.ts` only checks "logged in", not
  * role, so STAFF can reach this route; role-based rendering happens here.
  */
+// See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
+// Next statically prerenders this page at build time and settings/user
+// changes never show up here on reload in production.
+export const dynamic = "force-dynamic"
+
 export default async function SettingsPage() {
   const session = await auth()
   const isOwner = session?.user?.role === "OWNER"

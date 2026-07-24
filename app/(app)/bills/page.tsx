@@ -30,6 +30,11 @@ function firstValue(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
 
+// See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
+// Next statically prerenders this page at build time and new/edited bills
+// never show up here on reload in production.
+export const dynamic = "force-dynamic"
+
 export default async function BillsPage({ searchParams }: BillsPageProps) {
   const params = await searchParams
 

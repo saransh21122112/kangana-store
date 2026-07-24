@@ -31,6 +31,11 @@ interface PageProps {
   params: Promise<{ id: string }>
 }
 
+// See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
+// Next statically prerenders this page at build time and new bills/edits
+// for this customer never show up here on reload in production.
+export const dynamic = "force-dynamic"
+
 export default async function CustomerProfilePage({ params }: PageProps) {
   const { id } = await params
   const [customer, vipIds] = await Promise.all([getCustomerById(id), getVipCustomerIds()])

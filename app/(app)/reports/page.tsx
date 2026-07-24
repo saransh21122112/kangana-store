@@ -24,6 +24,12 @@ function formatCurrency(amount: number): string {
  * month's revenue trend, the category breakdown, and a top-spenders table,
  * plus CSV export links already built in Stage 9.
  */
+// See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
+// Next statically prerenders this page at build time and it never reflects
+// bills added after that build (this is what caused "Total Sales This
+// Month" to show a stale, too-low figure in production).
+export const dynamic = "force-dynamic"
+
 export default async function ReportsPage() {
   const [dailySales, categorySales, salesThisMonth, topSpenders] = await Promise.all([
     getDailySalesLast30Days(),
