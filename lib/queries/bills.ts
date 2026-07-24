@@ -76,13 +76,21 @@ export async function recalculateCustomerRollup(
 export type CreateBillResult =
   | { ok: true; bill: Bill; customer: Customer }
   | { ok: false; reason: "duplicate_billNo" }
-  | { ok: false; reason: "customer_not_found" };
+  | { ok: false; reason: "customer_not_found" }
+  | { ok: false; reason: "inventory_item_not_found" }
+  | { ok: false; reason: "insufficient_stock" };
 
 /**
  * Creates a bill and recalculates the owning customer's rollup, in a single
  * transaction. Checks billNo uniqueness up front (mirroring
  * `createCustomer`'s duplicate-mobile pattern) rather than letting a raw
  * Prisma P2002 unique-constraint error bubble up.
+ *
+ * Optionally links the bill to a stocked `InventoryItem` and decrements its
+ * quantity atomically with bill creation — both succeed or both fail. When
+ * `data.inventoryItemId` is unset (the common case, e.g. "Beauty Services"
+ * bills with no stocked item), behavior is byte-for-byte identical to
+ * before this was added.
  */
 export async function createBillWithRollup(data: BillInput): Promise<CreateBillResult> {
   return prisma.$transaction(async (tx) => {
@@ -102,6 +110,18 @@ export async function createBillWithRollup(data: BillInput): Promise<CreateBillR
       return { ok: false, reason: "customer_not_found" };
     }
 
+    if (data.inventoryItemId) {
+      const item = await tx.inventoryItem.findUnique({
+        where: { id: data.inventoryItemId },
+      });
+      if (!item) {
+        return { ok: false, reason: "inventory_item_not_found" };
+      }
+      if (item.quantity < (data.quantitySold ?? 0)) {
+        return { ok: false, reason: "insufficient_stock" };
+      }
+    }
+
     const bill = await tx.bill.create({
       data: {
         billNo: data.billNo,
@@ -109,8 +129,18 @@ export async function createBillWithRollup(data: BillInput): Promise<CreateBillR
         amount: data.amount,
         category: data.category,
         customerId: data.customerId,
+        ...(data.inventoryItemId
+          ? { inventoryItemId: data.inventoryItemId, quantitySold: data.quantitySold }
+          : {}),
       },
     });
+
+    if (data.inventoryItemId) {
+      await tx.inventoryItem.update({
+        where: { id: data.inventoryItemId },
+        data: { quantity: { decrement: data.quantitySold } },
+      });
+    }
 
     const customer = await recalculateCustomerRollup(data.customerId, tx);
 
@@ -180,13 +210,22 @@ export async function updateBill(id: string, data: BillUpdateInput): Promise<Upd
 export type DeleteBillResult = { ok: true } | { ok: false; reason: "not_found" };
 
 /**
- * Deletes a bill and recalculates its (former) customer's rollup.
+ * Deletes a bill and recalculates its (former) customer's rollup. If the
+ * bill was linked to an `InventoryItem`, restores (increments) that item's
+ * stock by the bill's `quantitySold`, in the same transaction as the delete.
  */
 export async function deleteBill(id: string): Promise<DeleteBillResult> {
   return prisma.$transaction(async (tx) => {
     const current = await tx.bill.findUnique({ where: { id } });
     if (!current) {
       return { ok: false, reason: "not_found" };
+    }
+
+    if (current.inventoryItemId) {
+      await tx.inventoryItem.update({
+        where: { id: current.inventoryItemId },
+        data: { quantity: { increment: current.quantitySold ?? 0 } },
+      });
     }
 
     await tx.bill.delete({ where: { id } });

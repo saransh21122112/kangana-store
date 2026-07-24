@@ -48,17 +48,30 @@ enum Gender {
 }
 
 model Bill {
-  id           String    @id @default(cuid())
-  billNo       String    @unique
-  date         DateTime  @default(now())
-  amount       Float
-  category     String
-  customer     Customer  @relation(fields: [customerId], references: [id])
-  customerId   String
-  createdAt    DateTime  @default(now())
+  id              String         @id @default(cuid())
+  billNo          String         @unique
+  date            DateTime       @default(now())
+  amount          Float
+  category        String
+  customer        Customer       @relation(fields: [customerId], references: [id])
+  customerId      String
+  createdAt       DateTime       @default(now())
+
+  // --- Stage 20 addition -----------------------------------------------
+  // Optional link to a stocked InventoryItem — deliberately optional (not
+  // every bill sells a specific tracked item; service categories like
+  // "Beauty Services" never set this). When set, `quantitySold` is also
+  // required and `createBillWithRollup` atomically decrements the item's
+  // stock in the same transaction as bill creation; `deleteBill` restores
+  // it. This reverses Stage 19's "standalone, not linked to Bill" scope
+  // decision — an explicit, user-approved follow-up, not an oversight.
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  inventoryItemId String?
+  quantitySold    Int?
 
   @@index([date])
   @@index([category])
+  @@index([inventoryItemId])
 }
 
 model MessageTemplate {
@@ -145,4 +158,22 @@ model AppSettings {
   inactiveThreshold60 Int      @default(60)
   inactiveThreshold90 Int      @default(90)
   updatedAt           DateTime @updatedAt
+}
+
+// --- Stage 19 addition ------------------------------------------------------
+// Standalone inventory tracker — not linked to Bill (bills stay purely
+// label-based via their free-text `category` string, per the explicit scope
+// decision for this stage). Additive only, same "one new model" precedent as
+// AppSettings above.
+model InventoryItem {
+  id                String   @id @default(cuid())
+  name              String
+  category          String
+  quantity          Int      @default(0)
+  lowStockThreshold Int      @default(5)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  bills             Bill[]
+
+  @@index([category])
 }

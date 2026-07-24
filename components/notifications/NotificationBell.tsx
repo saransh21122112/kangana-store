@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Bell, PartyPopper, Heart, Star, AlertTriangle, CheckCheck } from "lucide-react"
+import { Bell, PartyPopper, Heart, Star, AlertTriangle, Box, CheckCheck } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 
 import { cn } from "@/lib/utils"
@@ -24,27 +24,31 @@ interface OwnerNotificationDTO {
 /**
  * Picks an icon based on the `type` string's prefix (see
  * lib/queries/notifications.ts's dedupe-key scheme — `type` is always
- * `"<kind>:<customerId>"`). Falls back to the generic bell icon for
- * anything unrecognized.
+ * `"<kind>:<id>"`, where `id` is a customer id for every kind except
+ * `low-stock:`, whose id is an `InventoryItem` id). Falls back to the
+ * generic bell icon for anything unrecognized.
  */
 function iconForType(type: string) {
   if (type.startsWith("birthday:")) return PartyPopper
   if (type.startsWith("anniversary:")) return Heart
   if (type.startsWith("vip-top10:")) return Star
   if (type.startsWith("inactive-")) return AlertTriangle
+  if (type.startsWith("low-stock:")) return Box
   return Bell
 }
 
 /**
- * Best-effort deep link for a notification. `type` embeds the customer id
- * after the first `:` for every notification the cron route creates, so
- * this can link straight to that customer's profile. If a `type` doesn't
- * follow that shape (shouldn't happen given this stage's own cron route,
- * but kept defensive for forward-compatibility), falls back to `/lists`
- * rather than guessing — documented here per the brief's explicit "your
- * call" on this point.
+ * Best-effort deep link for a notification. `type` embeds an id after the
+ * first `:`, which is a customer id for every kind the cron route creates
+ * except `low-stock:` — that id is an `InventoryItem` id, and there's no
+ * per-item detail page, so it links to the filtered inventory list instead
+ * of guessing a `/inventory/<id>` route that doesn't exist. Any other
+ * `type` that doesn't follow the `"<kind>:<id>"` shape (shouldn't happen
+ * given this stage's own cron route, but kept defensive for forward-
+ * compatibility) falls back to `/lists` rather than guessing.
  */
 function linkForNotification(type: string): string {
+  if (type.startsWith("low-stock:")) return "/inventory?lowStockOnly=true"
   const separatorIndex = type.indexOf(":")
   if (separatorIndex === -1) return "/lists"
   const customerId = type.slice(separatorIndex + 1)

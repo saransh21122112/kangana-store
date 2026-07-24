@@ -9,10 +9,12 @@ import {
 } from "@/lib/queries/customer-lists"
 import { getDashboardStats } from "@/lib/queries/dashboard-stats"
 import { getSettings } from "@/lib/queries/settings"
+import { getLowStockItems } from "@/lib/queries/inventory"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { StatTilesRow } from "@/components/dashboard/StatTilesRow"
 import { MiniListCard } from "@/components/dashboard/MiniListCard"
 import { NeedsAttentionCard } from "@/components/dashboard/NeedsAttentionCard"
+import { LowStockCard } from "@/components/dashboard/LowStockCard"
 import { RevenueChart } from "@/components/dashboard/RevenueChart"
 import { CategoryBreakdownChart } from "@/components/dashboard/CategoryBreakdownChart"
 
@@ -48,15 +50,17 @@ export default async function DashboardPage() {
     redirect("/customers")
   }
 
-  const [stats, birthdays, anniversaries, inactive30, inactive60, inactive90, settings] = await Promise.all([
-    getDashboardStats(),
-    getBirthdaysThisWeek(),
-    getAnniversariesThisWeek(),
-    getInactiveCustomers(30),
-    getInactiveCustomers(60),
-    getInactiveCustomers(90),
-    getSettings(),
-  ])
+  const [stats, birthdays, anniversaries, inactive30, inactive60, inactive90, settings, lowStockItems] =
+    await Promise.all([
+      getDashboardStats(),
+      getBirthdaysThisWeek(),
+      getAnniversariesThisWeek(),
+      getInactiveCustomers(30),
+      getInactiveCustomers(60),
+      getInactiveCustomers(90),
+      getSettings(),
+      getLowStockItems(),
+    ])
 
   const birthdaysToday = birthdays.filter((b) => b.daysUntil === 0).length
   const anniversariesToday = anniversaries.filter((a) => a.daysUntil === 0).length
@@ -120,6 +124,10 @@ export default async function DashboardPage() {
           inactive60={inactive60.length}
           inactive90={inactive90.length}
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <LowStockCard items={lowStockItems} />
       </div>
     </div>
   )

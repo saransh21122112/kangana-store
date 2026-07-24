@@ -4,7 +4,12 @@ import dotenv from "dotenv"
 
 // Loaded explicitly (rather than relying on Next's own .env loading, which
 // only applies inside `next dev`/`next build`) so credentials are available
-// to the Playwright test process itself.
+// to the Playwright test process itself. `.env` first (real app secrets
+// this project already has, e.g. CRON_SECRET — needed to call
+// /api/cron/daily-check the same way Vercel Cron does), then
+// `.env.test.local` layered on top for e2e-specific vars (E2E_OWNER_EMAIL
+// etc.) — neither file is committed (see .gitignore's blanket `.env*` rule).
+dotenv.config({ path: path.resolve(__dirname, ".env") })
 dotenv.config({ path: path.resolve(__dirname, ".env.test.local") })
 
 const baseURL = process.env.E2E_BASE_URL ?? "http://localhost:3000"

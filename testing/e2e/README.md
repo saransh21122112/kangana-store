@@ -31,6 +31,11 @@ must follow these rules:
    short of actually submitting — dismiss confirm dialogs, verify
    disabled/enabled gating, but never complete the mutation against a real
    `Customer`/`Bill` row. See `delete-flows.spec.ts` for the pattern.
+   **Exception:** rows a test creates itself (e.g. `inventory.spec.ts`'s
+   throwaway `InventoryItem`s, named with a `E2E ... <timestamp>` prefix) are
+   not real data — creating, mutating, and actually deleting them in the
+   same test is fine and expected, same reasoning as throwaway test users.
+   The rule is about never touching data the test didn't create.
 2. **Role tests create their own throwaway users, and always clean up.**
    Tests that need a STAFF or VIEWER session create a dedicated account
    through the real `Settings → Users` API (`support/test-users.ts`), scoped
@@ -43,7 +48,10 @@ must follow these rules:
    data, never write it.
 4. **Credentials come from `.env.test.local`** (gitignored, not committed) —
    `E2E_OWNER_EMAIL` / `E2E_OWNER_PASSWORD`, an existing real OWNER account.
-   Never hardcode credentials in a spec file.
+   Never hardcode credentials in a spec file. `low-stock-notifications.spec.ts`
+   also needs `CRON_SECRET` — read from this project's real `.env` (not
+   `.env.test.local`), since `playwright.config.ts` loads both; it `test.skip`s
+   itself if that var isn't set rather than failing.
 
 ## Files
 
@@ -62,3 +70,15 @@ must follow these rules:
   type-to-confirm gating, both non-destructive.
 - `windows-friendly.spec.ts` — the search-shortcut tooltip shows "Ctrl+K" on
   a spoofed non-Mac platform and "⌘K" on a spoofed Mac platform.
+- `inventory.spec.ts` — full CRUD lifecycle, stock-quantity clamping, filters,
+  and role gating for the inventory tracker, against throwaway self-created
+  items (see the delete-flows exception above).
+- `low-stock-notifications.spec.ts` — calls the real `/api/cron/daily-check`
+  route (same auth header Vercel Cron uses) against a throwaway low-stock
+  item, asserting exactly one notification is created and a second run
+  within the 24h window doesn't duplicate it.
+- `bill-inventory-linking.spec.ts` — optionally linking a bill to a stocked
+  item: stock decrements atomically on sale, overselling is rejected with
+  the bill never created and stock left untouched, and deleting a linked
+  bill restores the stock. Uses throwaway self-created customers/items/bills
+  throughout (see the delete-flows exception above).
