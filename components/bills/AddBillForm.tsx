@@ -26,6 +26,24 @@ import { cn } from "@/lib/utils"
  */
 type AddBillFormValues = z.input<typeof billSchema>
 
+/**
+ * Minimal shape needed from `GET /api/inventory` — `lib/queries/inventory.ts`
+ * doesn't export a dedicated DTO type (it returns the Prisma-generated
+ * `InventoryItem[]` directly), so this is a small local type covering just
+ * the fields this form displays/uses rather than importing the Prisma
+ * client's generated type into a client component.
+ */
+interface InventoryItemOption {
+  id: string
+  name: string
+  quantity: number
+}
+
+/** Sentinel value for the "None" option in the inventory-item `<Select>` —
+ * mirrors `CustomerFilterBar`'s `"__any__"` pattern, since Base UI's Select
+ * doesn't take a real empty-string value. */
+const NO_ITEM_VALUE = "__none__"
+
 export interface AddBillFormProps {
   /** The customer this bill is being added for — already known by the caller. */
   customerId: string
@@ -100,6 +118,7 @@ export function AddBillForm({ customerId, onSuccess }: AddBillFormProps) {
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<AddBillFormValues, unknown, BillInput>({
     resolver: zodResolver(billSchema),
@@ -112,19 +131,84 @@ export function AddBillForm({ customerId, onSuccess }: AddBillFormProps) {
     },
   })
 
+  /**
+   * Stocked inventory items available for the currently-selected category,
+   * fetched whenever `selectedCategory` changes — same fetch-on-effect
+   * pattern as the categories effect above, but scoped per-category and
+   * re-run on change (rather than mount-once). `null` while loading/on
+   * failure so the picker section stays hidden until we know for sure
+   * there's something to show.
+   */
+  const [availableItems, setAvailableItems] = React.useState<InventoryItemOption[] | null>(null)
+  const [selectedItemId, setSelectedItemId] = React.useState<string>(NO_ITEM_VALUE)
+  const [insufficientStock, setInsufficientStock] = React.useState(false)
+
+  /**
+   * Resetting the item selection when `selectedCategory` changes is state
+   * derived from a value changing between renders, not a synchronization
+   * with an external system — so per React's "Adjusting some state when a
+   * prop changes" pattern, this compares against a *state* snapshot of the
+   * last-seen category (not a ref — `react-hooks/refs` disallows reading/
+   * writing refs during render) and calls `setState` directly in the render
+   * body when it differs, rather than inside a `useEffect` (which
+   * `react-hooks/set-state-in-effect` flags as cascading-render-prone).
+   */
+  const [lastCategory, setLastCategory] = React.useState(selectedCategory)
+  if (lastCategory !== selectedCategory) {
+    setLastCategory(selectedCategory)
+    setAvailableItems(null)
+    setSelectedItemId(NO_ITEM_VALUE)
+    setValue("inventoryItemId", undefined)
+    setValue("quantitySold", undefined)
+  }
+
+  React.useEffect(() => {
+    let cancelled = false
+    fetch(`/api/inventory?category=${encodeURIComponent(selectedCategory)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json: { items?: InventoryItemOption[] } | null) => {
+        if (cancelled) return
+        if (json?.items) {
+          setAvailableItems(json.items)
+        }
+      })
+      .catch(() => {
+        // Leave availableItems null — picker section stays hidden.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [selectedCategory])
+
+  const itemIsSelected = selectedItemId !== NO_ITEM_VALUE
+
   const submit = handleSubmit(async (data) => {
     setDuplicateBillNo(false)
+    setInsufficientStock(false)
     setServerError(null)
     try {
       const res = await fetch("/api/bills", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, category: selectedCategory, customerId }),
+        body: JSON.stringify({
+          billNo: data.billNo,
+          date: data.date,
+          amount: data.amount,
+          category: selectedCategory,
+          customerId,
+          ...(itemIsSelected
+            ? { inventoryItemId: selectedItemId, quantitySold: data.quantitySold }
+            : {}),
+        }),
       })
       const json = await res.json()
 
       if (res.status === 409) {
-        setDuplicateBillNo(true)
+        if (json.reason === "insufficient_stock") {
+          setInsufficientStock(true)
+        } else {
+          setDuplicateBillNo(true)
+        }
         return
       }
       if (!res.ok) {
@@ -191,6 +275,64 @@ export function AddBillForm({ customerId, onSuccess }: AddBillFormProps) {
           </SelectContent>
         </Select>
       </div>
+
+      {availableItems && availableItems.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="inventoryItem">Link to inventory item (optional)</Label>
+          <Select
+            value={selectedItemId}
+            onValueChange={(val) => {
+              const next = val as string
+              setSelectedItemId(next)
+              setInsufficientStock(false)
+              if (next === NO_ITEM_VALUE) {
+                setValue("inventoryItemId", undefined)
+                setValue("quantitySold", undefined)
+              } else {
+                setValue("inventoryItemId", next, { shouldValidate: true })
+                setValue("quantitySold", 1, { shouldValidate: true })
+              }
+            }}
+          >
+            <SelectTrigger id="inventoryItem" className="w-full">
+              <SelectValue placeholder="None" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_ITEM_VALUE}>None</SelectItem>
+              {availableItems.map((item) => (
+                <SelectItem key={item.id} value={item.id}>
+                  {item.name} ({item.quantity} in stock)
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {itemIsSelected && (
+            <div className="flex flex-col gap-1.5 pt-2">
+              <Label htmlFor="quantitySold">Quantity Sold</Label>
+              <Input
+                id="quantitySold"
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step="1"
+                defaultValue={1}
+                {...register("quantitySold")}
+              />
+              {errors.quantitySold && (
+                <p className="text-xs text-danger">{errors.quantitySold.message}</p>
+              )}
+            </div>
+          )}
+
+          {insufficientStock && (
+            <p className="text-xs text-danger">
+              Not enough stock — only{" "}
+              {availableItems.find((item) => item.id === selectedItemId)?.quantity ?? 0} left.
+            </p>
+          )}
+        </div>
+      )}
 
       {serverError && <p className="text-sm text-danger">{serverError}</p>}
 

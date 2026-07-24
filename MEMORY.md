@@ -2837,3 +2837,165 @@ with those exact buttons). All 3 Mermaid diagrams independently rendered to SVG/
 `mermaid-cli`, zero syntax errors, main flowchart visually reviewed for legibility.
 
 **Not pushed** — same standing instruction.
+
+## Stage 19 — Standalone Inventory tracker + e2e tests
+
+Prompt: "i want to add an inventory mechanism e2e" (after Stage 18's push/merge/deploy to
+production went out — this stage starts a fresh feature, unrelated).
+
+Before building anything, three scope questions were asked and answered: (1) standalone tracker,
+not linked to `Bill` — no changes to the billing flow; (2) fields are name, category (reuses
+`AppSettings.categories`, same list bills already use), quantity, low-stock threshold — no
+cost/price/SKU; (3) OWNER+STAFF can manage (create/edit/adjust stock), VIEWER read-only, delete is
+OWNER-only (matching the existing bill/customer delete pattern).
+
+**Schema:** one new additive model, done directly (not delegated) since schema changes are
+foundational/high-blast-radius:
+```prisma
+model InventoryItem {
+  id String @id @default(cuid())
+  name String
+  category String
+  quantity Int @default(0)
+  lowStockThreshold Int @default(5)
+  createdAt/updatedAt DateTime
+  @@index([category])
+}
+```
+Migration `20260724180904_add_inventory_item` applied directly to the shared DB (purely additive,
+same low-risk profile as every prior schema addition this project has made).
+
+**Delegated to a background subagent** (`lib/validations/inventory.ts`, `lib/queries/inventory.ts`,
+`app/api/inventory/**`, `app/(app)/inventory/page.tsx`, `components/inventory/*`, the Sidebar nav
+entry) with an explicitly detailed spec naming every reference file to mirror (`customers` as the
+canonical CRUD pattern, `DeleteBillButton` for the delete button, `BillFilterBar` for the URL-param
+filter pattern) and — learning directly from the Stage 15 incident — **hard constraints spelled out
+verbatim**: no dev server, no live DB writes, no git commands, no touching `testing/e2e/` or
+anything Bill/dashboard-related, and an explicit "stop after your report, do not continue working"
+instruction. This time the agent stayed in scope: `git status` after it finished showed exactly the
+files it was told to touch, nothing else, and it correctly declined to touch `prisma/schema.prisma`
+even though the diff was already sitting there from the setup step (confirmed via `git diff` that
+the schema file's diff was 100% mine, unchanged by the agent).
+
+**Design decisions preserved from the CRUD layer:** stock quantity changes go through a dedicated
+delta-based `POST /api/inventory/[id]/adjust` endpoint (`{delta: number}`, server-side clamped to
+`Math.max(0, ...)`), separate from `PATCH /api/inventory/[id]` (name/category/threshold only) — so
+editing an item's details can never accidentally overwrite its quantity, and stock changes stay
+auditable as discrete +/- actions rather than silently-overwritable raw numbers.
+
+**Two real bugs caught before considering this done:**
+1. The subagent's summary said `tsc`/`eslint` were clean, but every actual API call 500'd when
+   manually re-tested — the *running dev server process* had the pre-migration Prisma client
+   cached in memory (Node module caching, not something a source-file save/Turbopack HMR
+   refreshes), even though `npx prisma generate` had been re-run on disk. `tsc`/`eslint` can't
+   catch this class of bug — they check source, not runtime process state — which is exactly why
+   this stage's plan always included an actual `npm run test:e2e` pass, not just static checks.
+   Fixed by killing and restarting the dev server process (verified via `ps` that only the actual
+   `next-server` PID was targeted, not the two unrelated Chrome helper processes also listening
+   near port 3000).
+2. Adding "Inventory" to `SIDEBAR_NAV_ITEMS` correctly changed what STAFF/VIEWER see in their nav
+   (by design — VIEWER/STAFF should both see Inventory) — but this silently broke `roles.spec.ts`'s
+   two pre-existing exact-array `toHaveText([...])` nav assertions from Stage 15c, which had no way
+   to know a new nav item was coming. This is exactly the kind of regression a persistent test
+   suite is supposed to catch (and did) — fixed by updating both expected arrays to include
+   "Inventory" in its correct position, not by loosening the assertions to be less precise.
+
+**Dashboard integration:** new `components/dashboard/LowStockCard.tsx` (mirrors
+`NeedsAttentionCard`'s simple-list chrome), fed by a new `getLowStockItems()` query, added as a new
+row on the dashboard. Built specifically so the `lowStockThreshold` field is load-bearing from day
+one — `MEMORY.md`'s own Stage 9 notes flagged `AppSettings`'s inactive-customer thresholds as a
+cautionary tale of a settings field that got stored but never actually wired into real logic; this
+stage deliberately didn't repeat that mistake.
+
+**e2e tests** (`testing/e2e/inventory.spec.ts`, 7 tests) — written directly, not delegated, since
+getting the data-safety reasoning right matters more here than anywhere else in the suite. Unlike
+every other delete-flow test in this suite (which must never complete a real deletion against real
+customer/bill data), inventory items *created by the test itself* are safe to actually create,
+mutate, and delete in the same test — they're new throwaway rows, not pre-existing store data. This
+distinction is now documented as an explicit exception in `testing/e2e/README.md`'s rule #1, next
+to the original never-delete-real-data rule, so a future test author doesn't have to re-derive it.
+Covers: full CRUD lifecycle, stock-quantity clamping at 0, category/low-stock filters, page-render
+with no console errors, nav-link presence, and the full STAFF/VIEWER role matrix (STAFF can
+create/adjust but gets 403 on delete; VIEWER gets 403 on every mutation and sees no mutation
+buttons).
+
+**Verification:** `npx tsc --noEmit` and `npx eslint .` clean (same 3 pre-existing warnings, 0
+new). Full suite run: **34/34 passed** (27 pre-existing + 7 new). Manually clicked through the UI
+afterward (add item → low-stock badge appears correctly → dashboard card reflects it → deleted the
+same throwaway item) to visually confirm what the tests assert numerically. Confirmed zero leftover
+data in both `User` and `InventoryItem` tables after everything.
+
+**Not pushed** — no push/deploy instruction was given for this stage; still local pending review.
+
+## Stage 20 — Low-stock notifications + Bill↔Inventory linking
+
+Prompt: after being asked "any other feature that might be very important to add," two of the four
+suggestions were picked: low-stock alerts via the existing cron/notification pipeline, and linking
+bills to inventory (auto-deduct stock on sale) — the two features explicitly deferred when Stage 19
+was scoped. Two scope questions were asked and answered before writing code: (1) alerts are in-app
+notifications only, matching how birthdays/inactive-customers already work — this app has an
+explicit "nothing goes out automatically" rule for WhatsApp (see the Campaigns page), and low-stock
+doesn't get a special exception to that; (2) linking a bill to a stocked item is optional, not
+required, even when the bill's category has matching stock — most categories (e.g. "Beauty
+Services") have none, and forcing a link would block legitimate sales.
+
+**Schema** (done directly, foundational): `Bill` gets `inventoryItemId String?` +
+`quantitySold Int?` + the relation, `InventoryItem` gets the inverse `bills Bill[]`. This
+deliberately reverses Stage 19's own "standalone, not linked to Bill" scope decision — an explicit,
+user-approved follow-up, documented as such in the schema comment so a future reader doesn't read
+it as an oversight or inconsistency. Migration `20260724190258_link_bill_to_inventory`, purely
+additive/nullable, `ON DELETE SET NULL` on the FK (so deleting an inventory item that has historical
+bills linked to it just clears the link on those bills rather than blocking the delete or cascading
+into deleting bill history).
+
+**Low-stock notifications** (done directly, small/contained): `app/api/cron/daily-check/route.ts`
+gained one more loop over `getLowStockItems()`, calling the same `notify(type, message)` /
+`createNotificationIfNotExists` helper every other check in that route already uses — dedupe key
+`low-stock:<itemId>`, same 24h window, same "not exact crossing-detection, just currently-at-or-
+below" approximation the route's own doc comment already applies to VIP/inactive checks.
+`components/notifications/NotificationBell.tsx` needed two real fixes, not just an icon add: its
+`linkForNotification` helper assumed every notification's embedded id was a customer id and would
+have generated a broken `/customers/<inventoryItemId>` link for low-stock notifications — special-
+cased to route to `/inventory?lowStockOnly=true` instead (there's no per-item detail page).
+
+**Bill↔Inventory linking** — delegated to a background subagent with the same detailed-spec-plus-
+hard-constraints pattern from Stage 19 (every reference file named, exact transaction ordering
+spelled out, explicit "stop after reporting, don't continue" instruction) since it touches the
+core, previously-untouched `createBillWithRollup`/`deleteBill` transactions. Design:
+- `lib/validations/bill.ts`: `inventoryItemId`/`quantitySold` are both optional but both-or-neither
+  (a `.superRefine()` shared between `billSchema` and `billUpdateSchema` — the agent had to restructure
+  the schema so `.partial()` still worked, since `ZodEffects` from `.superRefine()` doesn't support it).
+- `lib/queries/bills.ts`: `createBillWithRollup` checks the linked item's stock *inside* the same
+  transaction as bill creation — insufficient stock rejects the whole transaction (bill is NOT
+  created, stock is NOT touched), never silently clamps like `adjustStock`'s manual-adjustment
+  clamp-to-0 behavior does (a sale overselling stock is a real error, not a valid state).
+  `deleteBill` now restores (increments) stock when the deleted bill had a link. `updateBill` was
+  deliberately left untouched — changing the link/quantity after creation is out of scope, avoiding
+  the harder "reconcile stock if quantitySold changes after the fact" problem.
+- `components/bills/AddBillForm.tsx`: category-scoped inventory-item picker (only shown when the
+  selected category actually has stocked items) plus a conditional quantity-sold field, with a
+  distinct inline error for "insufficient stock" vs. the pre-existing "duplicate bill number" 409.
+
+**Verification:**
+- `npx tsc --noEmit` / `npx eslint .` clean throughout (same 3 pre-existing warnings, 0 new) —
+  confirmed by re-reading the agent's actual diff, not just its self-report; `git status` after it
+  finished showed exactly the files it was told to touch and nothing else (it correctly declined to
+  touch the cron/notification files from earlier in this same stage, confirmed via `git diff`
+  showing those files' diffs were 100% mine, unchanged).
+- New tests: `testing/e2e/bill-inventory-linking.spec.ts` (5 tests — no-link regression, successful
+  atomic decrement, overselling rejected with stock/billNo both left untouched, delete-restores-
+  stock, linking a nonexistent item 404s) and `testing/e2e/low-stock-notifications.spec.ts` (3 tests
+  — auth rejection, exactly-one-notification-with-24h-dedupe, well-stocked items never notify).
+  Both use throwaway self-created customers/items/bills, safe to actually create-and-delete per the
+  README's existing exception for self-created rows.
+- One real, non-bug hiccup while running the cron test: it initially timed out at the default 30s
+  test timeout — not a bug, but the actual, pre-existing performance profile of
+  `/api/cron/daily-check` (it sequentially walks every birthday/anniversary/inactive-tier/top-
+  spender/low-stock candidate with a per-row Neon round trip, ~2-3s observed elsewhere in this
+  project), and the test calls it twice. Fixed by raising that one test's timeout to 90s rather than
+  trimming what it verifies.
+- Full suite run fresh end to end: **42/42 passed** (34 prior + 5 bill-linking + 3 low-stock).
+  Confirmed zero leftover data afterward across `User`, `InventoryItem`, and any `E2E`-prefixed
+  `Bill`/`Customer` rows.
+
+**Not pushed** — no push/deploy instruction given this stage either; still local.

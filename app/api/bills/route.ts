@@ -27,6 +27,18 @@ export async function POST(req: Request) {
         { status: 409 }
       );
     }
+    if (result.reason === "insufficient_stock") {
+      return NextResponse.json(
+        { error: "Not enough stock for this item", reason: result.reason },
+        { status: 409 }
+      );
+    }
+    if (result.reason === "inventory_item_not_found") {
+      return NextResponse.json(
+        { error: "Inventory item not found", reason: result.reason },
+        { status: 404 }
+      );
+    }
     return NextResponse.json(
       { error: "Customer not found", reason: result.reason },
       { status: 404 }

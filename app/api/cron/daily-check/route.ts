@@ -6,6 +6,7 @@ import {
   getInactiveCustomers,
   getTopSpenders,
 } from "@/lib/queries/customer-lists";
+import { getLowStockItems } from "@/lib/queries/inventory";
 import { createNotificationIfNotExists } from "@/lib/queries/notifications";
 
 /**
@@ -98,6 +99,21 @@ export async function GET(req: Request) {
     await notify(
       `vip-top10:${customer.id}`,
       `⭐ ${customer.name} is currently a top-10 spender (₹${customer.totalPurchaseAmount.toLocaleString("en-IN")}).`
+    );
+  }
+
+  // --- Low stock alert (Stage 20) — same simplification as VIP above: not
+  // "just crossed the threshold," just "currently at or below it," with the
+  // 24h dedupe window (keyed `low-stock:<itemId>`) doing the real work of
+  // not re-notifying every single day while an item sits low. In-app
+  // notification only — this app never sends WhatsApp automatically (see
+  // the Campaigns page's own "nothing goes out automatically" note), and
+  // low-stock alerts don't get a special exception to that rule.
+  const lowStockItems = await getLowStockItems();
+  for (const item of lowStockItems) {
+    await notify(
+      `low-stock:${item.id}`,
+      `📦 ${item.name} is low on stock: ${item.quantity} left (threshold ${item.lowStockThreshold}).`
     );
   }
 

@@ -38,7 +38,7 @@ test.describe("Role-based access control", () => {
     await loginAs(page, staffUser.email, staffUser.password)
 
     const navLinks = page.locator("aside nav a")
-    await expect(navLinks).toHaveText(["Customers", "Visits/Bills", "Lists", "Settings"])
+    await expect(navLinks).toHaveText(["Customers", "Visits/Bills", "Lists", "Inventory", "Settings"])
 
     for (const path of ["/", "/reports", "/messages/campaigns", "/messages/templates"]) {
       await page.goto(path)
@@ -61,11 +61,18 @@ test.describe("Role-based access control", () => {
     await logout(page)
   })
 
-  test("VIEWER: nav shows only Dashboard/Customers/Bills/Lists/Reports", async ({ page }) => {
+  test("VIEWER: nav shows only Dashboard/Customers/Bills/Lists/Inventory/Reports", async ({ page }) => {
     await loginAs(page, viewerUser.email, viewerUser.password)
 
     const navLinks = page.locator("aside nav a")
-    await expect(navLinks).toHaveText(["Dashboard", "Customers", "Visits/Bills", "Lists", "Reports"])
+    await expect(navLinks).toHaveText([
+      "Dashboard",
+      "Customers",
+      "Visits/Bills",
+      "Lists",
+      "Inventory",
+      "Reports",
+    ])
 
     for (const path of ["/settings", "/messages/campaigns", "/messages/templates"]) {
       await page.goto(path)

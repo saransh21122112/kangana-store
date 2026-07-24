@@ -10,6 +10,7 @@ import {
   Receipt,
   MessageCircle,
   ListChecks,
+  Box,
   BarChart3,
   Settings,
   ChevronLeft,
@@ -41,6 +42,7 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavItem[] = [
   { label: "Visits/Bills", href: "/bills", icon: Receipt },
   { label: "Campaigns", href: "/messages/campaigns", icon: MessageCircle },
   { label: "Lists", href: "/lists", icon: ListChecks },
+  { label: "Inventory", href: "/inventory", icon: Box },
   { label: "Reports", href: "/reports", icon: BarChart3 },
   { label: "Settings", href: "/settings", icon: Settings },
 ]
