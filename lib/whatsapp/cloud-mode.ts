@@ -15,6 +15,10 @@ import type { SendMessageParams, SendMessageResult } from "@/lib/whatsapp/send";
  * webhook), and update it to `SENT`/`FAILED`/`DELIVERED`/`READ` as webhook
  * events arrive. None of that exists yet.
  */
+// Stub keeps the real parameter name/type documented for the future
+// implementation described above; this project's eslint config has no
+// `argsIgnorePattern` for leading underscores, hence the disable below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function sendMessageCloud(_params: SendMessageParams): Promise<SendMessageResult> {
   return {
     ok: false,

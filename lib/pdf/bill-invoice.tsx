@@ -160,6 +160,9 @@ export function BillInvoiceDocument({ bill, storeName }: BillInvoiceProps) {
       <Page size="A5" style={styles.page}>
         <View style={styles.header}>
           <View style={styles.storeRow}>
+            {/* eslint-disable-next-line jsx-a11y/alt-text -- this is
+                @react-pdf/renderer's <Image> (a PDF drawing primitive), not
+                an HTML <img> or next/image — it has no `alt` prop to set. */}
             <Image src={LOGO_PATH} style={styles.logo} />
             <Text style={styles.storeName}>{storeName}</Text>
           </View>
