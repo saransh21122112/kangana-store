@@ -35,9 +35,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   logo: {
-    width: 36,
-    height: 36,
-    borderRadius: 6,
+    height: 28,
+    width: 61,
   },
   storeName: {
     fontSize: 18,
@@ -149,8 +148,11 @@ function formatDate(date: Date): string {
 
 /** Absolute filesystem path to the store logo — @react-pdf/renderer's
  * <Image> accepts a local path directly in the Node runtime this route
- * runs in (App Router API routes default to the Node runtime). */
-const LOGO_PATH = path.join(process.cwd(), "public", "kangna-logo.jpg")
+ * runs in (App Router API routes default to the Node runtime). Uses the
+ * trimmed wordmark (whitespace border cropped out), not the raw source
+ * asset — at this print size the untrimmed version's fine detail was
+ * illegible, same issue fixed on the login page and Sidebar. */
+const LOGO_PATH = path.join(process.cwd(), "public", "kangna-logo-mark.png")
 
 export function BillInvoiceDocument({ bill, storeName }: BillInvoiceProps) {
   return (

@@ -78,6 +78,11 @@ export function Sidebar({ className, role }: SidebarProps) {
   const navItems = hiddenLabels
     ? SIDEBAR_NAV_ITEMS.filter((item) => !hiddenLabels.has(item.label))
     : SIDEBAR_NAV_ITEMS
+  // Defaults to "Ctrl+K" (correct pre-hydration and for the majority of
+  // users) and only switches to the Mac glyph once mounted, so Windows/
+  // Linux users never see a misleading ⌘ hint — the keydown handler itself
+  // already accepts both metaKey and ctrlKey, this is display-only.
+  const searchShortcutLabel = mounted && navigator.platform.toUpperCase().includes("MAC") ? "⌘K" : "Ctrl+K"
 
   return (
     <aside
@@ -91,15 +96,15 @@ export function Sidebar({ className, role }: SidebarProps) {
         {!collapsed && (
           <Link href="/" className="flex min-w-0 flex-1 items-center gap-2">
             <Image
-              src="/kangna-logo.jpg"
+              src="/kangna-logo-mark.png"
               alt="Kangna"
-              width={28}
-              height={28}
-              className="size-7 shrink-0 rounded-md object-cover"
+              width={348}
+              height={159}
+              className="h-7 w-auto shrink-0 rounded-sm bg-white p-0.5"
               priority
             />
-            <span className="truncate font-display text-base font-semibold tracking-tight text-foreground">
-              Kangna CRM
+            <span className="truncate text-xs font-medium tracking-wide text-muted-foreground">
+              CRM
             </span>
           </Link>
         )}
@@ -110,7 +115,7 @@ export function Sidebar({ className, role }: SidebarProps) {
             "flex size-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
             collapsed && "mx-auto"
           )}
-          title="Search (⌘K)"
+          title={`Search (${searchShortcutLabel})`}
           aria-label="Search customers"
         >
           <Search {...ICON_PROPS} size={18} />

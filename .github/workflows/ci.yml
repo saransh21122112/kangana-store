@@ -1,0 +1,35 @@
+name: CI
+
+# Typecheck, lint, and build only — no database access, no secrets needed.
+# The Playwright e2e suite deliberately does NOT run here: it creates/
+# deletes real accounts and reads real data against the shared production
+# Neon DB (this app has no separate test database, see testing/e2e/
+# README.md), so it's manual-trigger-only via .github/workflows/e2e.yml
+# instead of running unattended on every push/PR.
+on:
+  push:
+    branches: ["main", "det"]
+  pull_request:
+
+jobs:
+  typecheck-lint-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint .
+
+      - name: Build
+        run: npm run build

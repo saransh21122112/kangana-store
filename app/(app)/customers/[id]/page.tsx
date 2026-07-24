@@ -86,7 +86,12 @@ export default async function CustomerProfilePage({ params }: PageProps) {
               lastVisitDate={customer.lastVisitDate}
               isVip={vipIds.has(customer.id)}
             />
-            <div className="flex items-center gap-2">
+            {/* flex-wrap + shrink-0 on each button: on narrow viewports two
+                buttons ("Delete Customer" + "Send Message") don't fit side
+                by side, and without this the buttons would compress and
+                wrap their own text mid-word instead of the row wrapping
+                them onto separate lines as whole buttons. */}
+            <div className="flex flex-wrap items-center justify-end gap-2 [&>*]:shrink-0">
               {isOwner && <DeleteCustomerButton customerId={customer.id} customerName={customer.name} />}
               {isOwner && (
                 <SendMessageSheet
