@@ -1,7 +1,20 @@
 import { PDFParse } from "pdf-parse"
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
 import { OWNER_EMAIL, OWNER_PASSWORD } from "./support/env"
 import { loginAs } from "./support/auth"
+
+function uniqueMobile(): string {
+  return `9${String(Date.now()).slice(-9)}`
+}
+
+async function createTestCustomer(page: Page): Promise<{ id: string }> {
+  const res = await page.request.post("/api/customers", {
+    data: { name: `E2E PDF Customer ${Date.now()}`, mobileNumber: uniqueMobile() },
+  })
+  expect(res.ok(), `create customer failed: ${res.status()} ${await res.text()}`).toBeTruthy()
+  const body = await res.json()
+  return { id: body.customer.id }
+}
 
 test.describe("Bill PDF download", () => {
   test.beforeEach(async ({ page }) => {
@@ -56,5 +69,55 @@ test.describe("Bill PDF download", () => {
     // it produced a different, mangled character instead.
     expect(text).toContain("Rs.")
     expect(text).toMatch(/Rs\.\s*[\d,]+/)
+  })
+
+  test("a bill with many line items paginates, and the footer repeats on every page (regression)", async ({
+    page,
+  }) => {
+    // Regression test for a real bug: the footer Text wasn't marked `fixed`,
+    // so on a bill long enough to overflow onto a second A5 page it would
+    // only render on whichever page @react-pdf/renderer's auto-pagination
+    // happened to place it on, not on every page. 40 line items reliably
+    // overflows a single A5 page's table area.
+    test.setTimeout(60_000)
+
+    const customer = await createTestCustomer(page)
+    let billId: string | undefined
+
+    try {
+      const lineItems = Array.from({ length: 40 }, (_, i) => ({
+        category: "Other",
+        quantity: 1,
+        lineTotal: 100 + i,
+      }))
+      const billRes = await page.request.post("/api/bills", {
+        data: {
+          billNo: `E2E-PDF-PAGINATE-${Date.now()}`,
+          date: new Date().toISOString().slice(0, 10),
+          customerId: customer.id,
+          lineItems,
+        },
+      })
+      expect(billRes.status()).toBe(201)
+      billId = (await billRes.json()).bill.id
+
+      const res = await page.request.get(`/api/bills/${billId}/pdf`)
+      expect(res.status()).toBe(200)
+      const buf = await res.body()
+
+      const parser = new PDFParse({ data: buf })
+      const { pages, total } = await parser.getText()
+      await parser.destroy()
+
+      expect(total).toBeGreaterThan(1)
+      for (const p of pages) {
+        expect(p.text, `page ${p.num} is missing the footer`).toContain(
+          "Thank you for shopping"
+        )
+      }
+    } finally {
+      if (billId) await page.request.delete(`/api/bills/${billId}`)
+      await page.request.delete(`/api/customers/${customer.id}`)
+    }
   })
 })

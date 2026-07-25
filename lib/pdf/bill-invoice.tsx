@@ -205,7 +205,9 @@ export function BillInvoiceDocument({ bill, storeName }: BillInvoiceProps) {
           <Text style={styles.totalValue}>{formatCurrency(bill.amount)}</Text>
         </View>
 
-        <Text style={styles.footer}>Thank you for shopping with {storeName}.</Text>
+        <Text style={styles.footer} fixed>
+          Thank you for shopping with {storeName}.
+        </Text>
       </Page>
     </Document>
   )
