@@ -22,6 +22,9 @@ export interface AddBillGlobalSheetProps {
   /** Custom trigger element. Falls back to a default "+ Add Bill" AppleButton
    * if omitted — mirrors QuickAddSheet's own trigger API for consistency. */
   trigger?: React.ReactNode
+  /** STAFF can't see phone numbers — hides the mobile-number line from
+   * each search result (they still select by name). */
+  hidePhone?: boolean
 }
 
 type Step = "search" | "quickAdd" | "form"
@@ -34,7 +37,7 @@ type Step = "search" | "quickAdd" | "form"
  * inline "create new customer" form if not found → AddBillForm scoped to
  * whichever customer was selected/created.
  */
-export function AddBillGlobalSheet({ trigger }: AddBillGlobalSheetProps) {
+export function AddBillGlobalSheet({ trigger, hidePhone }: AddBillGlobalSheetProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [step, setStep] = React.useState<Step>("search")
@@ -172,7 +175,9 @@ export function AddBillGlobalSheet({ trigger }: AddBillGlobalSheetProps) {
                       <Avatar name={customer.name} />
                       <div className="flex flex-col">
                         <span className="text-sm font-medium text-foreground">{customer.name}</span>
-                        <span className="text-xs text-muted-foreground">{customer.mobileNumber}</span>
+                        {!hidePhone && (
+                          <span className="text-xs text-muted-foreground">{customer.mobileNumber}</span>
+                        )}
                       </div>
                     </button>
                   </li>

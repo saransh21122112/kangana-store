@@ -1,5 +1,6 @@
 import { Cake, Heart, UserX, Trophy, UserPlus2 } from "lucide-react"
 
+import { auth } from "@/lib/auth"
 import {
   getBirthdaysThisWeek,
   getAnniversariesThisWeek,
@@ -56,6 +57,9 @@ interface ListsPageProps {
 export const dynamic = "force-dynamic"
 
 export default async function ListsPage({ searchParams }: ListsPageProps) {
+  const session = await auth()
+  const isStaff = session?.user.role === "STAFF"
+
   const params = await searchParams
   const view: ViewValue = isViewValue(params.view) ? params.view : "birthdays"
   const inactiveDays = params.days === "60" || params.days === "90" ? Number(params.days) as 60 | 90 : 30
@@ -147,6 +151,8 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
         emptyIcon={emptyIcon}
         emptyTitle={emptyTitle}
         emptyDescription={emptyDescription}
+        hidePhone={isStaff}
+        hideMetric={isStaff && view === "top-spenders"}
       />
     </div>
   )

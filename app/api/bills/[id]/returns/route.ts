@@ -19,7 +19,9 @@ interface RouteParams {
  * unrelated bill's line item by guessing/tampering with the id.
  */
 export async function POST(req: Request, { params }: RouteParams) {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  // OWNER only — STAFF can add bills/customers but not process returns or
+  // see bill amounts, per the STAFF permission narrowing.
+  const guard = await requireRole(["OWNER"]);
   if (!guard.ok) return guard.response;
 
   const { id } = await params;

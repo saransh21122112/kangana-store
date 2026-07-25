@@ -20,7 +20,8 @@ const COLUMNS: CsvColumn[] = [
 ];
 
 export async function GET() {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  // OWNER only — this CSV includes phone numbers and bill totals, which STAFF can't see.
+  const guard = await requireRole(["OWNER"]);
   if (!guard.ok) return guard.response;
 
   const customers = await prisma.customer.findMany({ orderBy: { createdAt: "asc" } });

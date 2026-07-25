@@ -47,6 +47,10 @@ export const dynamic = "force-dynamic"
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const session = await auth()
   const isViewer = session?.user.role === "VIEWER"
+  const isStaff = session?.user.role === "STAFF"
+  // STAFF can add customers/bills but can't see phone numbers, call/message
+  // them, or see bill-derived totals (Total Spend).
+  const showSensitive = !isStaff
 
   const params = await searchParams
 
@@ -88,7 +92,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
           <CustomerFilterBar />
           {!isViewer && (
             <>
-              <AddBillGlobalSheet />
+              <AddBillGlobalSheet hidePhone={isStaff} />
               <QuickAddSheet />
               <Link href="/customers/new">
                 <AppleButton>
@@ -122,7 +126,9 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                       <Avatar name={customer.name} size="lg" />
                       <div className="flex flex-col">
                         <span className="font-medium text-foreground">{customer.name}</span>
-                        <span className="text-xs text-muted-foreground">{customer.mobileNumber}</span>
+                        {showSensitive && (
+                          <span className="text-xs text-muted-foreground">{customer.mobileNumber}</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -133,32 +139,36 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                     isVip={vipIds.has(customer.id)}
                   />
 
-                  <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
-                    <span className="text-muted-foreground">Total Spend</span>
-                    <span className="font-semibold text-foreground">
-                      {formatCurrency(customer.totalPurchaseAmount)}
-                    </span>
-                  </div>
+                  {showSensitive && (
+                    <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
+                      <span className="text-muted-foreground">Total Spend</span>
+                      <span className="font-semibold text-foreground">
+                        {formatCurrency(customer.totalPurchaseAmount)}
+                      </span>
+                    </div>
+                  )}
                 </Link>
 
-                <div className="flex items-center gap-2">
-                  <a
-                    href={`tel:${customer.mobileNumber}`}
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-                  >
-                    <Phone {...ICON_PROPS} size={14} />
-                    Call
-                  </a>
-                  <a
-                    href={waLink(customer.mobileNumber)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground hover:bg-muted"
-                  >
-                    <MessageCircle {...ICON_PROPS} size={14} />
-                    WhatsApp
-                  </a>
-                </div>
+                {showSensitive && (
+                  <div className="flex items-center gap-2">
+                    <a
+                      href={`tel:${customer.mobileNumber}`}
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                    >
+                      <Phone {...ICON_PROPS} size={14} />
+                      Call
+                    </a>
+                    <a
+                      href={waLink(customer.mobileNumber)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border py-1.5 text-xs font-medium text-foreground hover:bg-muted"
+                    >
+                      <MessageCircle {...ICON_PROPS} size={14} />
+                      WhatsApp
+                    </a>
+                  </div>
+                )}
               </AppleCard>
             </StaggerItem>
           ))}

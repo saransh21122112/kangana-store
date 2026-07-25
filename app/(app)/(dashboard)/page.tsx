@@ -80,6 +80,10 @@ export default async function DashboardPage() {
         todaysCustomerCount={stats.todaysCustomerCount}
         totalSalesToday={stats.totalSalesToday}
         totalSalesMonth={stats.totalSalesMonth}
+        totalSales90Days={stats.totalSales90Days}
+        totalSales6Months={stats.totalSales6Months}
+        totalSalesYear={stats.totalSalesYear}
+        allTimeTotalSales={stats.allTimeTotalSales}
         birthdaysToday={birthdaysToday}
         anniversariesToday={anniversariesToday}
         repeatCustomerCount={stats.repeatCustomerCount}

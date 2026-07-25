@@ -128,6 +128,7 @@ export function Sidebar({ className, role }: SidebarProps) {
       {!isViewer && (
         <div className="px-2">
           <AddBillGlobalSheet
+            hidePhone={isStaff}
             trigger={
               <button
                 type="button"
