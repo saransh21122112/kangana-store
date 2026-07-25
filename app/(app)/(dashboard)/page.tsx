@@ -107,7 +107,7 @@ export default async function DashboardPage() {
         </AppleCard>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MiniListCard
           title="Birthdays This Week"
           icon={Cake}
@@ -129,9 +129,6 @@ export default async function DashboardPage() {
           inactive60={inactive60.length}
           inactive90={inactive90.length}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <LowStockCard items={lowStockItems} />
       </div>
     </div>
