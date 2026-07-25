@@ -29,7 +29,7 @@ export function NeedsAttentionCard({ inactive30, inactive60, inactive90 }: Needs
   }
 
   return (
-    <AppleCard noPadding className="flex flex-col gap-2 p-4">
+    <AppleCard glow noPadding className="flex flex-col gap-2 p-4">
       <div className="flex items-center gap-2">
         <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning">
           <UserX {...ICON_PROPS} size={16} />

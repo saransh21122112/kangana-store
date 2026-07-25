@@ -13,6 +13,8 @@ export interface StatTileProps {
   /** e.g. "+12% vs last week" */
   trendLabel?: string
   className?: string
+  /** Extra classes on the value span — e.g. `.glow-text` for the futuristic dashboard preview. */
+  valueClassName?: string
 }
 
 const trendConfig: Record<StatTrend, { icon: React.ElementType; className: string }> = {
@@ -25,13 +27,13 @@ const trendConfig: Record<StatTrend, { icon: React.ElementType; className: strin
  * Big number + label + optional trend indicator. Meant to sit inside an
  * AppleCard on the dashboard (e.g. "Today's Customers", "Total Sales").
  */
-export function StatTile({ label, value, trend, trendLabel, className }: StatTileProps) {
+export function StatTile({ label, value, trend, trendLabel, className, valueClassName }: StatTileProps) {
   const Trend = trend ? trendConfig[trend] : null
 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-3xl font-semibold tracking-tight text-foreground">
+      <span className={cn("text-3xl font-semibold tracking-tight text-foreground", valueClassName)}>
         {value}
       </span>
       {Trend && trendLabel && (

@@ -10,6 +10,7 @@ import {
 import { getDashboardStats } from "@/lib/queries/dashboard-stats"
 import { getLowStockItems } from "@/lib/queries/inventory"
 import { AppleCard } from "@/components/apple/AppleCard"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { StatTilesRow } from "@/components/dashboard/StatTilesRow"
 import { MiniListCard } from "@/components/dashboard/MiniListCard"
 import { NeedsAttentionCard } from "@/components/dashboard/NeedsAttentionCard"
@@ -64,9 +65,11 @@ export default async function DashboardPage() {
   const anniversariesToday = anniversaries.filter((a) => a.daysUntil === 0).length
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div>
-        <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Dashboard</h1>
+        <h1 className="glow-text font-display text-3xl font-semibold tracking-tight">Dashboard</h1>
         <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
         <p className="mt-2 text-sm text-muted-foreground">
           Overview of today&apos;s activity across the store.
@@ -85,14 +88,14 @@ export default async function DashboardPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <AppleCard className="flex flex-col gap-3 lg:col-span-2">
+        <AppleCard glow className="flex flex-col gap-3 lg:col-span-2">
           <h2 className="text-base font-semibold tracking-tight text-foreground">
             Sales — Last 30 Days
           </h2>
           <RevenueChart data={stats.dailySales} />
         </AppleCard>
 
-        <AppleCard className="flex flex-col gap-3">
+        <AppleCard glow className="flex flex-col gap-3">
           <h2 className="text-base font-semibold tracking-tight text-foreground">
             Sales by Category
           </h2>
