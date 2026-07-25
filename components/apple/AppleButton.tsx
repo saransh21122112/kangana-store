@@ -33,6 +33,17 @@ const sizeClasses: Record<AppleButtonSize, string> = {
  * Built as a standalone primitive (rather than wrapping shadcn's Button)
  * because the base-nova Button uses @base-ui/react's render-prop pattern,
  * which doesn't compose cleanly with motion.button's own element control.
+ *
+ * `whitespace-nowrap shrink-0` — a real bug, reported via a screenshot: a
+ * multi-word label ("Start Send Queue", "Send to 133") inside a narrow
+ * flex row would wrap onto two lines, and once the button's box grew
+ * taller than its intended single-line height, `rounded-xl`'s fixed
+ * corner radius looked disproportionately pill-like against the new
+ * height — the button visually broke rather than just looking "a bit
+ * tall". A button's own text should never wrap; if a row is too narrow
+ * for the button at its natural width, the row should wrap around the
+ * button instead (see `flex-wrap` on `CampaignBuilder`'s and
+ * `WeMissYouPanel`'s send-button rows).
  */
 export const AppleButton = React.forwardRef<HTMLButtonElement, AppleButtonProps>(
   ({ className, variant = "primary", size = "md", disabled, ...props }, ref) => {
@@ -44,7 +55,7 @@ export const AppleButton = React.forwardRef<HTMLButtonElement, AppleButtonProps>
         whileTap={disabled ? undefined : { scale: 0.97 }}
         transition={{ type: "spring", stiffness: 500, damping: 30 }}
         className={cn(
-          "inline-flex items-center justify-center rounded-xl font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+          "inline-flex shrink-0 items-center justify-center whitespace-nowrap rounded-xl font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
           variantClasses[variant],
           sizeClasses[size],
           className

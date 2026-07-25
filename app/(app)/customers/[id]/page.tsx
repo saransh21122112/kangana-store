@@ -49,6 +49,10 @@ export default async function CustomerProfilePage({ params }: PageProps) {
   // STAFF can add customers/bills but can't see phone numbers, call/message
   // them, or see bill-derived totals (Total Purchase, Avg Bill Value).
   const showSensitive = !isStaff
+  // Call/WhatsApp is OWNER-only — VIEWER can still see the phone number
+  // itself (unchanged read-only access), just not actually contact the
+  // customer through it.
+  const canContact = isOwner
 
   const { id } = await params
   const [customer, vipIds] = await Promise.all([getCustomerById(id), getVipCustomerIds()])
@@ -70,22 +74,31 @@ export default async function CustomerProfilePage({ params }: PageProps) {
               <div className="gradient-hairline h-0.5 w-12 rounded-full" />
               {showSensitive && (
                 <div className="flex items-center gap-3">
-                  <a
-                    href={`tel:${customer.mobileNumber}`}
-                    className="flex items-center gap-1.5 text-sm text-accent hover:underline"
-                  >
-                    <Phone {...ICON_PROPS} size={14} />
-                    {customer.mobileNumber}
-                  </a>
-                  <a
-                    href={waLink(customer.mobileNumber)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 text-sm text-success hover:underline"
-                  >
-                    <MessageCircle {...ICON_PROPS} size={14} />
-                    WhatsApp
-                  </a>
+                  {canContact ? (
+                    <a
+                      href={`tel:${customer.mobileNumber}`}
+                      className="flex items-center gap-1.5 text-sm text-accent hover:underline"
+                    >
+                      <Phone {...ICON_PROPS} size={14} />
+                      {customer.mobileNumber}
+                    </a>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                      <Phone {...ICON_PROPS} size={14} />
+                      {customer.mobileNumber}
+                    </span>
+                  )}
+                  {canContact && (
+                    <a
+                      href={waLink(customer.mobileNumber)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-success hover:underline"
+                    >
+                      <MessageCircle {...ICON_PROPS} size={14} />
+                      WhatsApp
+                    </a>
+                  )}
                 </div>
               )}
             </div>

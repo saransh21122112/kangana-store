@@ -148,7 +148,7 @@ export function CampaignBuilder({ templates, audiences, allCustomers }: Campaign
         </div>
       )}
 
-      <div className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/40 px-4 py-3">
         <div className="flex items-center gap-2 text-sm text-foreground">
           <Users size={16} strokeWidth={1.75} />
           <span>
