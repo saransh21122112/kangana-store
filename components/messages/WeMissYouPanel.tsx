@@ -45,7 +45,7 @@ export function WeMissYouPanel({ candidates, templateId }: WeMissYouPanelProps) 
 
   if (!templateId) {
     return (
-      <AppleCard>
+      <AppleCard glow>
         <EmptyState
           icon={HeartHandshake}
           title="No We Miss You template"
@@ -57,7 +57,7 @@ export function WeMissYouPanel({ candidates, templateId }: WeMissYouPanelProps) 
 
   if (candidates.length === 0) {
     return (
-      <AppleCard>
+      <AppleCard glow>
         <EmptyState
           icon={HeartHandshake}
           title="No inactive customers right now"
@@ -78,7 +78,7 @@ export function WeMissYouPanel({ candidates, templateId }: WeMissYouPanelProps) 
   }
 
   return (
-    <AppleCard className="flex flex-col gap-4">
+    <AppleCard glow className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-foreground">We Miss You — Owner Review</h2>

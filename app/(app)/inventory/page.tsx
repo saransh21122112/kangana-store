@@ -5,6 +5,7 @@ import { getAllInventoryItems } from "@/lib/queries/inventory"
 import { getSettings } from "@/lib/queries/settings"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleBadge } from "@/components/apple/Badge"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { InventoryFilterBar } from "@/components/inventory/InventoryFilterBar"
 import { AddInventoryItemSheet } from "@/components/inventory/AddInventoryItemSheet"
@@ -44,7 +45,9 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   ])
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Inventory</h1>
@@ -60,7 +63,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
       </div>
 
       {items.length === 0 ? (
-        <AppleCard>
+        <AppleCard glow>
           <EmptyState
             icon={Box}
             title="No inventory items yet"
@@ -68,7 +71,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           />
         </AppleCard>
       ) : (
-        <AppleCard className="overflow-x-auto p-0">
+        <AppleCard glow className="overflow-x-auto p-0">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">

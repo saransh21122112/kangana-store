@@ -6,6 +6,7 @@ import { getDailySalesLast30Days, getSalesByCategory, getTotalSales } from "@/li
 import { getTopSpenders } from "@/lib/queries/customer-lists"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleButton } from "@/components/apple/AppleButton"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { StatTile } from "@/components/apple/StatTile"
 import { RevenueChart } from "@/components/dashboard/RevenueChart"
 import { CategoryBreakdownChart } from "@/components/dashboard/CategoryBreakdownChart"
@@ -50,7 +51,9 @@ export default async function ReportsPage() {
   ])
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Reports</h1>
@@ -80,17 +83,17 @@ export default async function ReportsPage() {
       <StatTile label="Total Sales This Month" value={formatCurrency(salesThisMonth)} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <AppleCard>
+        <AppleCard glow>
           <h2 className="mb-4 text-sm font-medium text-foreground">Daily Sales (Last 30 Days)</h2>
           <RevenueChart data={dailySales} />
         </AppleCard>
-        <AppleCard>
+        <AppleCard glow>
           <h2 className="mb-4 text-sm font-medium text-foreground">Sales by Category</h2>
           <CategoryBreakdownChart data={categorySales} />
         </AppleCard>
       </div>
 
-      <AppleCard className="overflow-x-auto p-0">
+      <AppleCard glow className="overflow-x-auto p-0">
         <h2 className="px-4 pt-4 text-sm font-medium text-foreground">Top Spenders</h2>
         <table className="w-full min-w-[480px] text-sm">
           <thead>

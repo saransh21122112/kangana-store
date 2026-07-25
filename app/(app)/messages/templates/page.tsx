@@ -6,6 +6,7 @@ import { auth } from "@/lib/auth"
 import { getAllTemplates } from "@/lib/queries/message-templates"
 import { TemplateEditor } from "@/components/messages/TemplateEditor"
 import { NewTemplateSheet } from "@/components/messages/NewTemplateSheet"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { ICON_PROPS } from "@/lib/icon-map"
 
@@ -27,7 +28,9 @@ export default async function MessageTemplatesPage() {
   const templates = await getAllTemplates()
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <Link

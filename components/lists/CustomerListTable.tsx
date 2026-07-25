@@ -64,7 +64,7 @@ export function CustomerListTable({
 }: CustomerListTableProps) {
   if (rows.length === 0) {
     return (
-      <AppleCard>
+      <AppleCard glow>
         <EmptyState icon={emptyIcon} title={emptyTitle} description={emptyDescription} />
       </AppleCard>
     )

@@ -83,7 +83,7 @@ export function CustomerProfileTabs({ customer, bills, messages, role }: Custome
       )}
 
       {tab === "messages" && (
-        <AppleCard noPadding className="overflow-hidden">
+        <AppleCard glow noPadding className="overflow-hidden">
           {messages.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
@@ -110,7 +110,7 @@ export function CustomerProfileTabs({ customer, bills, messages, role }: Custome
       )}
 
       {tab === "edit" && !isViewer && (
-        <AppleCard>
+        <AppleCard glow>
           <CustomerForm
             defaultValues={defaultValues}
             submitLabel="Save Changes"

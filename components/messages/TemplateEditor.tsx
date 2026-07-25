@@ -77,7 +77,7 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
   }
 
   return (
-    <AppleCard className="flex flex-col gap-4">
+    <AppleCard glow className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-3">
         <AppleBadge variant="neutral">{template.type}</AppleBadge>
         <button

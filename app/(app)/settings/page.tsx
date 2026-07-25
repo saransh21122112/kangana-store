@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth"
 import { getSettings } from "@/lib/queries/settings"
 import { getRecentActivity } from "@/lib/queries/activity-log"
 import { prisma } from "@/lib/prisma"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import type { UserRow } from "@/components/settings/UserManagementTable"
 import type { ActivityLogRow } from "@/components/settings/ActivityLogTable"
@@ -60,7 +61,9 @@ export default async function SettingsPage() {
   }))
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Settings</h1>
         <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />

@@ -84,7 +84,7 @@ export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillH
         </div>
       )}
 
-      <AppleCard noPadding className="overflow-hidden">
+      <AppleCard glow noPadding className="overflow-hidden">
         {sortedBills.length === 0 ? (
           <EmptyState
             icon={Receipt}

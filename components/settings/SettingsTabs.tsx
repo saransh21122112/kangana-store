@@ -66,7 +66,7 @@ export function SettingsTabs({
     <div className="flex flex-col gap-5">
       <SegmentedControl options={options} value={tab} onChange={setTab} />
 
-      <AppleCard>
+      <AppleCard glow>
         {tab === "profile" && <StoreProfileForm defaultValues={storeProfileDefaults} />}
 
         {tab === "categories" && <CategoryManager defaultCategories={categories} />}

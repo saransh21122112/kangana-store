@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { getAllBills } from "@/lib/queries/bills"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleButton } from "@/components/apple/AppleButton"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { BillFilterBar } from "@/components/bills/BillFilterBar"
 import { AddBillGlobalSheet } from "@/components/bills/AddBillGlobalSheet"
@@ -75,7 +76,9 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
   })
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Visits &amp; Bills</h1>
@@ -101,7 +104,7 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
       </div>
 
       {bills.length === 0 ? (
-        <AppleCard>
+        <AppleCard glow>
           <EmptyState
             icon={Receipt}
             title="No bills yet"
@@ -109,7 +112,7 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
           />
         </AppleCard>
       ) : (
-        <AppleCard className="overflow-x-auto p-0">
+        <AppleCard glow className="overflow-x-auto p-0">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
               <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">

@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import { getAllCustomers, getVipCustomerIds, type VisitFrequencyBucket } from "@/lib/queries/customers"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleButton } from "@/components/apple/AppleButton"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { Avatar } from "@/components/apple/Avatar"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { StaggerList, StaggerItem } from "@/components/apple/motion"
@@ -72,7 +73,9 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
   ])
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Customers</h1>
@@ -99,7 +102,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
       </div>
 
       {customers.length === 0 ? (
-        <AppleCard>
+        <AppleCard glow>
           <EmptyState
             icon={Users}
             title="No customers yet"
@@ -110,7 +113,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
         <StaggerList className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {customers.map((customer) => (
             <StaggerItem key={customer.id}>
-              <AppleCard className="flex flex-col gap-3 transition-shadow hover:shadow-lg">
+              <AppleCard glow className="flex flex-col gap-3 transition-shadow hover:shadow-lg">
                 {/* Not nested inside the tel:/wa.me anchors below (invalid HTML) —
                     this Link covers just the identity/stats section. */}
                 <Link href={`/customers/${customer.id}`} className="flex flex-col gap-3">

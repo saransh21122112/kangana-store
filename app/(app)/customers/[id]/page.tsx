@@ -5,6 +5,7 @@ import { Phone, MessageCircle } from "lucide-react"
 import { auth } from "@/lib/auth"
 import { getCustomerById, getVipCustomerIds } from "@/lib/queries/customers"
 import { AppleCard } from "@/components/apple/AppleCard"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { StatTile } from "@/components/apple/StatTile"
 import { Avatar } from "@/components/apple/Avatar"
 import { CustomerBadges } from "@/components/customers/CustomerBadges"
@@ -53,8 +54,10 @@ export default async function CustomerProfilePage({ params }: PageProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <AppleCard className="flex flex-col gap-4">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
+      <AppleCard glow className="flex flex-col gap-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-4">
             <Avatar name={customer.name} size="lg" className="size-14 text-lg" />
@@ -121,22 +124,22 @@ export default async function CustomerProfilePage({ params }: PageProps) {
       {/* Rollup stats below reflect whatever is currently stored on the
           Customer row — nothing keeps these live yet, that's Stage 4. */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <AppleCard>
+        <AppleCard glow>
           <StatTile label="Customer Since" value={formatDate(customer.customerSince)} />
         </AppleCard>
-        <AppleCard>
+        <AppleCard glow>
           <StatTile label="Total Purchase" value={formatCurrency(customer.totalPurchaseAmount)} />
         </AppleCard>
-        <AppleCard>
+        <AppleCard glow>
           <StatTile label="Total Visits" value={customer.totalVisits} />
         </AppleCard>
-        <AppleCard>
+        <AppleCard glow>
           <StatTile label="Avg Bill Value" value={formatCurrency(customer.averageBillValue)} />
         </AppleCard>
-        <AppleCard>
+        <AppleCard glow>
           <StatTile label="Last Visit" value={formatDate(customer.lastVisitDate)} />
         </AppleCard>
-        <AppleCard className="flex flex-col gap-2">
+        <AppleCard glow className="flex flex-col gap-2">
           <StatTile label="Loyalty Points" value={customer.loyaltyPoints} />
           {canMutate && <LoyaltyPointsAdjuster customerId={customer.id} />}
         </AppleCard>

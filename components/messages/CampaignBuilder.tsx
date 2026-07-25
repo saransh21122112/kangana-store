@@ -80,7 +80,7 @@ export function CampaignBuilder({ templates, audiences, allCustomers }: Campaign
 
   if (templates.length === 0) {
     return (
-      <AppleCard>
+      <AppleCard glow>
         <EmptyState
           icon={Megaphone}
           title="No message templates"
@@ -91,7 +91,7 @@ export function CampaignBuilder({ templates, audiences, allCustomers }: Campaign
   }
 
   return (
-    <AppleCard className="flex flex-col gap-5">
+    <AppleCard glow className="flex flex-col gap-5">
       <div className="flex flex-col gap-1.5">
         <span className="text-sm font-medium text-foreground">1. Choose a template</span>
         <select
