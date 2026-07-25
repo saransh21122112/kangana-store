@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth"
 import {
   getDailySalesForDays,
   getSalesByCategoryInRange,
+  getTopSellingItemsInRange,
   getDaysWindow,
 } from "@/lib/queries/dashboard-stats"
 import { getTopSpendersInRange } from "@/lib/queries/customer-lists"
@@ -15,6 +16,7 @@ import { StatTile } from "@/components/apple/StatTile"
 import { RevenueChart } from "@/components/dashboard/RevenueChart"
 import { CategoryBreakdownChart } from "@/components/dashboard/CategoryBreakdownChart"
 import { ReportsPeriodFilter } from "@/components/reports/ReportsPeriodFilter"
+import { TopSellingProductsTable } from "@/components/reports/TopSellingProductsTable"
 import { REPORTS_PERIOD_OPTIONS, isReportsPeriodValue, type ReportsPeriodValue } from "@/lib/reports-period"
 import { ICON_PROPS } from "@/lib/icon-map"
 
@@ -68,10 +70,11 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
   const { start, end } = getDaysWindow(days)
   const periodLabel = REPORTS_PERIOD_OPTIONS.find((o) => o.value === period)?.label ?? "30 Days"
 
-  const [dailySales, categorySales, topSpenders] = await Promise.all([
+  const [dailySales, categorySales, topSpenders, topSellingItems] = await Promise.all([
     getDailySalesForDays(days),
     getSalesByCategoryInRange(start, end),
     getTopSpendersInRange(start, end, 10),
+    getTopSellingItemsInRange(start, end, 10),
   ])
   // Derived from the same `dailySales` window rather than a separate
   // `getTotalSales` call, so the headline figure is guaranteed to equal
@@ -156,6 +159,8 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </tbody>
         </table>
       </AppleCard>
+
+      <TopSellingProductsTable items={topSellingItems} periodLabel={periodLabel} />
     </div>
   )
 }

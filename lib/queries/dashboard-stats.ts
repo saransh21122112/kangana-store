@@ -208,6 +208,58 @@ export async function getSalesByCategoryInRange(start: Date, end: Date): Promise
     .sort((a, b) => b.total - a.total);
 }
 
+export interface TopSellingItem {
+  id: string;
+  name: string;
+  brand: string | null;
+  category: string;
+  totalRevenue: number;
+  totalQuantity: number;
+}
+
+/**
+ * Top `limit` `InventoryItem`s by revenue within `[start, end)`, summed
+ * across every `BillLineItem` that references them. Line items with no
+ * `inventoryItemId` (ad-hoc/manual entries not tied to the catalog) are
+ * excluded — there's no item identity to group them by. Same
+ * groupBy-then-hydrate shape as `getTopSpendersInRange` in
+ * `lib/queries/customer-lists.ts`.
+ */
+export async function getTopSellingItemsInRange(
+  start: Date,
+  end: Date,
+  limit = 10
+): Promise<TopSellingItem[]> {
+  const grouped = await prisma.billLineItem.groupBy({
+    by: ["inventoryItemId"],
+    where: { inventoryItemId: { not: null }, bill: { date: { gte: start, lt: end } } },
+    _sum: { lineTotal: true, quantity: true },
+    orderBy: { _sum: { lineTotal: "desc" } },
+    take: limit,
+  });
+
+  if (grouped.length === 0) return [];
+
+  const ids = grouped.map((g) => g.inventoryItemId as string);
+  const items = await prisma.inventoryItem.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, name: true, brand: true, category: true },
+  });
+  const byId = new Map(items.map((i) => [i.id, i]));
+
+  return grouped
+    .map((g) => {
+      const item = byId.get(g.inventoryItemId as string);
+      if (!item) return null;
+      return {
+        ...item,
+        totalRevenue: g._sum.lineTotal ?? 0,
+        totalQuantity: g._sum.quantity ?? 0,
+      };
+    })
+    .filter((row): row is TopSellingItem => row !== null);
+}
+
 export interface DashboardStats {
   todaysCustomerCount: number;
   totalSalesToday: number;

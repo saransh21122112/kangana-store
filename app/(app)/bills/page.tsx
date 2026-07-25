@@ -3,6 +3,7 @@ import { Download, Receipt } from "lucide-react"
 
 import { auth } from "@/lib/auth"
 import { getAllBills } from "@/lib/queries/bills"
+import { lineItemDisplayLabel, type LineItemLabelSource } from "@/lib/bill-line-item-label"
 import { AppleCard } from "@/components/apple/AppleCard"
 import { AppleButton } from "@/components/apple/AppleButton"
 import { AuroraBackground } from "@/components/apple/AuroraBackground"
@@ -26,14 +27,15 @@ function formatDate(date: Date): string {
 
 /**
  * Compact summary of a bill's line items for the global bills table's
- * "Category" column — same "first distinct category + N more" convention
- * as `BillHistoryTable`'s per-customer list, for a consistent feel across
- * both bill listings.
+ * "Category" column — same "first distinct label + N more" convention as
+ * `BillHistoryTable`'s per-customer list, for a consistent feel across both
+ * bill listings. Prefers each line item's linked product name over its bare
+ * category (see `lib/bill-line-item-label.ts`) when a link exists.
  */
-function summarizeLineItems(lineItems: Array<{ category: string }>): string {
+function summarizeLineItems(lineItems: LineItemLabelSource[]): string {
   if (lineItems.length === 0) return "No items"
-  const distinctCategories = Array.from(new Set(lineItems.map((li) => li.category)))
-  const [first, ...rest] = distinctCategories
+  const distinctLabels = Array.from(new Set(lineItems.map(lineItemDisplayLabel)))
+  const [first, ...rest] = distinctLabels
   return rest.length > 0 ? `${first} +${rest.length} more` : first
 }
 

@@ -10,12 +10,21 @@ import { AppleCard } from "@/components/apple/AppleCard"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { CustomerForm, type CustomerFormDefaultValues } from "@/components/customers/CustomerForm"
 import { BillHistoryTable } from "@/components/bills/BillHistoryTable"
-import type { Bill, BillLineItem, BillReturn, Customer, MessageLog } from "@/lib/generated/prisma/client"
+import type {
+  Bill,
+  BillLineItem,
+  BillReturn,
+  Customer,
+  InventoryItem,
+  MessageLog,
+} from "@/lib/generated/prisma/client"
 import type { CustomerInput } from "@/lib/validations/customer"
 
 export interface CustomerProfileTabsProps {
   customer: Customer
-  bills: Array<Bill & { lineItems: Array<BillLineItem & { returns: BillReturn[] }> }>
+  bills: Array<
+    Bill & { lineItems: Array<BillLineItem & { returns: BillReturn[]; inventoryItem: InventoryItem | null }> }
+  >
   messages: MessageLog[]
   /** Current user's role — VIEWER never sees the "Edit Details" tab (read-only). */
   role?: string

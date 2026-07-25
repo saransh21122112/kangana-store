@@ -17,12 +17,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ICON_PROPS } from "@/lib/icon-map"
 
-const FILTER_KEYS = ["category", "lowStockOnly"] as const
+const FILTER_KEYS = ["category", "brand", "lowStockOnly"] as const
 
 export interface InventoryFilterBarProps {
   /** Category list, sourced from `AppSettings.categories` (same list
    * `AddInventoryItemSheet` uses), fetched server-side by the page. */
   categories: string[]
+  /** Distinct `brand` values across the catalog, sourced live from the DB
+   * (via `getDistinctBrands`) rather than a settings-managed list — unlike
+   * categories, brands aren't curated anywhere. */
+  brands: string[]
 }
 
 /**
@@ -31,7 +35,7 @@ export interface InventoryFilterBarProps {
  * presented inside an `AppleSheet`, while the page itself stays a server
  * component reading `searchParams`.
  */
-export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
+export function InventoryFilterBar({ categories, brands }: InventoryFilterBarProps) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -39,6 +43,7 @@ export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
   const [open, setOpen] = React.useState(false)
   const [draft, setDraft] = React.useState({
     category: searchParams.get("category") ?? "",
+    brand: searchParams.get("brand") ?? "",
     lowStockOnly: searchParams.get("lowStockOnly") === "true",
   })
 
@@ -69,6 +74,7 @@ export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
   function openSheet() {
     setDraft({
       category: searchParams.get("category") ?? "",
+      brand: searchParams.get("brand") ?? "",
       lowStockOnly: searchParams.get("lowStockOnly") === "true",
     })
     setOpen(true)
@@ -80,6 +86,11 @@ export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
       params.set("category", draft.category)
     } else {
       params.delete("category")
+    }
+    if (draft.brand) {
+      params.set("brand", draft.brand)
+    } else {
+      params.delete("brand")
     }
     if (draft.lowStockOnly) {
       params.set("lowStockOnly", "true")
@@ -148,6 +159,30 @@ export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
                 {categories.map((category) => (
                   <SelectItem key={category} value={category}>
                     {category}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label>Brand</Label>
+            <Select
+              value={draft.brand || "__any__"}
+              onValueChange={(value) =>
+                setDraft((d) => ({ ...d, brand: value && value !== "__any__" ? value : "" }))
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Any brand">
+                  {(value: string) => (value === "__any__" ? "Any brand" : value)}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__any__">Any brand</SelectItem>
+                {brands.map((brand) => (
+                  <SelectItem key={brand} value={brand}>
+                    {brand}
                   </SelectItem>
                 ))}
               </SelectContent>

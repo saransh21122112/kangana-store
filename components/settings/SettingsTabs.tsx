@@ -96,11 +96,20 @@ export function SettingsTabs({
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 sm:flex-row">
+            {/* `flex-wrap` (not a fixed `sm:flex-row` two-breakpoint jump) so a
+                third button fits without forcing any of the three to shrink
+                below their natural content width — `whitespace-nowrap
+                shrink-0` on each anchor keeps its own label on one line
+                (same bug/fix as `AppleButton`'s: a fixed-height pill whose
+                text is allowed to wrap just clips instead of growing). If a
+                row is too narrow for all three, the LAST button drops to its
+                own new line instead of every button's text getting
+                squeezed. */}
+            <div className="flex flex-wrap gap-2">
               <a
                 href="/api/export/customers"
                 download
-                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
               >
                 <Download {...ICON_PROPS} size={18} />
                 Export Customers as CSV
@@ -108,10 +117,18 @@ export function SettingsTabs({
               <a
                 href="/api/export/bills"
                 download
-                className="inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
               >
                 <Download {...ICON_PROPS} size={18} />
                 Export Bills as CSV
+              </a>
+              <a
+                href="/api/export/inventory"
+                download
+                className="inline-flex h-10 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-accent px-4 text-sm font-medium text-accent-foreground transition-colors hover:bg-accent/90"
+              >
+                <Download {...ICON_PROPS} size={18} />
+                Export Inventory as CSV
               </a>
             </div>
           </div>

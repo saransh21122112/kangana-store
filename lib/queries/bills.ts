@@ -356,11 +356,13 @@ export async function getBillById(id: string) {
 
 /** Like `getBillById`, but joined with the full owning `Customer` row —
  * needed for the PDF invoice (customer name/mobile) rather than just the
- * bill's own fields. */
+ * bill's own fields. Also joins each line item's linked `InventoryItem` (if
+ * any) so the invoice can print the actual product name instead of just its
+ * broad category — see `lib/bill-line-item-label.ts`. */
 export async function getBillWithCustomerById(id: string) {
   return prisma.bill.findUnique({
     where: { id },
-    include: { customer: true, lineItems: true },
+    include: { customer: true, lineItems: { include: { inventoryItem: true } } },
   });
 }
 
@@ -410,7 +412,9 @@ export async function getAllBills(params: GetAllBillsParams = {}) {
     orderBy: { date: "desc" },
     include: {
       customer: { select: { id: true, name: true, mobileNumber: true } },
-      lineItems: { include: { returns: true } },
+      // `inventoryItem` is also joined so the "Category" column can prefer
+      // the linked product's real name — see `lib/bill-line-item-label.ts`.
+      lineItems: { include: { returns: true, inventoryItem: true } },
     },
   });
 }
