@@ -25,6 +25,9 @@ export interface BillHistoryTableProps {
   isViewer?: boolean
   /** Only OWNER sees the per-row delete action. */
   isOwner?: boolean
+  /** STAFF can add bills but can't see amounts, download PDFs (they contain
+   * amounts), or process returns. */
+  isStaff?: boolean
 }
 
 /**
@@ -64,7 +67,8 @@ function formatCurrency(amount: number): string {
  * date: "desc" }`, but re-sorts defensively here too since callers could
  * pass unsorted data.
  */
-export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillHistoryTableProps) {
+export function BillHistoryTable({ customerId, bills, isViewer, isOwner, isStaff }: BillHistoryTableProps) {
+  const showSensitive = !isStaff
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
 
@@ -109,11 +113,13 @@ export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillH
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-foreground">
-                      {formatCurrency(bill.amount)}
-                    </span>
-                    <DownloadBillButton billId={bill.id} />
-                    {!isViewer && (
+                    {showSensitive && (
+                      <span className="text-sm font-semibold text-foreground">
+                        {formatCurrency(bill.amount)}
+                      </span>
+                    )}
+                    {showSensitive && <DownloadBillButton billId={bill.id} />}
+                    {isOwner && (
                       <RecordReturnSheet billId={bill.id} billNo={bill.billNo} lineItems={bill.lineItems} />
                     )}
                     {isOwner && <DeleteBillButton billId={bill.id} />}

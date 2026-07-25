@@ -41,7 +41,12 @@ export function openCommandPalette() {
  * 4's `AddBillGlobalSheet`) flags the more obvious effect-based debounce, so
  * this follows the same established pattern.
  */
-export function CommandPalette() {
+export interface CommandPaletteProps {
+  /** STAFF can't see phone numbers — hides the mobile-number line from each result. */
+  hidePhone?: boolean
+}
+
+export function CommandPalette({ hidePhone }: CommandPaletteProps) {
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [query, setQuery] = React.useState("")
@@ -165,9 +170,11 @@ export function CommandPalette() {
                     <span className="truncate text-sm font-medium text-foreground">
                       {customer.name}
                     </span>
-                    <span className="text-xs text-muted-foreground">
-                      {customer.mobileNumber}
-                    </span>
+                    {!hidePhone && (
+                      <span className="text-xs text-muted-foreground">
+                        {customer.mobileNumber}
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-muted-foreground">
                     {customer.lastVisitDate

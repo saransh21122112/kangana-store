@@ -11,13 +11,16 @@ interface RouteParams {
 }
 
 /**
- * Single-bill PDF invoice download. Uses the same GET permissions as
- * `GET /api/bills/[id]` (OWNER/STAFF/VIEWER) — this is a printable copy of
- * a record the caller can already read, not a bulk data export, so it's
- * intentionally not restricted the way `/api/export/*` (CSV, no VIEWER) is.
+ * Single-bill PDF invoice download. OWNER/VIEWER only — STAFF can't see
+ * bill amounts or customer phone numbers, both of which this PDF prints,
+ * and the download button is hidden from STAFF's UI accordingly; this
+ * closes the same gap at the API layer so a direct request can't bypass
+ * that. VIEWER keeps read access (this is a printable copy of a record
+ * they can already see elsewhere), so it's still not restricted the way
+ * `/api/export/*` (CSV, OWNER-only) is.
  */
 export async function GET(_req: Request, { params }: RouteParams) {
-  const guard = await requireRole(["OWNER", "STAFF", "VIEWER"])
+  const guard = await requireRole(["OWNER", "VIEWER"])
   if (!guard.ok) return guard.response
 
   const { id } = await params

@@ -44,7 +44,11 @@ function formatDate(date: Date | string): string {
 export function CustomerProfileTabs({ customer, bills, messages, role }: CustomerProfileTabsProps) {
   const isViewer = role === "VIEWER"
   const isOwner = role === "OWNER"
-  const TABS = isViewer ? BASE_TABS.filter((t) => t.value !== "edit") : BASE_TABS
+  const isStaff = role === "STAFF"
+  // Edit Details is OWNER-only — STAFF can add customers/bills but not
+  // edit existing records, same narrowing as VIEWER's existing read-only
+  // restriction.
+  const TABS = isOwner ? BASE_TABS : BASE_TABS.filter((t) => t.value !== "edit")
   const [tab, setTab] = React.useState("visits")
   const router = useRouter()
 
@@ -79,7 +83,13 @@ export function CustomerProfileTabs({ customer, bills, messages, role }: Custome
       <SegmentedControl options={TABS} value={tab} onChange={setTab} />
 
       {tab === "visits" && (
-        <BillHistoryTable customerId={customer.id} bills={bills} isViewer={isViewer} isOwner={isOwner} />
+        <BillHistoryTable
+          customerId={customer.id}
+          bills={bills}
+          isViewer={isViewer}
+          isOwner={isOwner}
+          isStaff={isStaff}
+        />
       )}
 
       {tab === "messages" && (
@@ -109,7 +119,7 @@ export function CustomerProfileTabs({ customer, bills, messages, role }: Custome
         </AppleCard>
       )}
 
-      {tab === "edit" && !isViewer && (
+      {tab === "edit" && isOwner && (
         <AppleCard glow>
           <CustomerForm
             defaultValues={defaultValues}

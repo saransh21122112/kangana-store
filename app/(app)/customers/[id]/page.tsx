@@ -44,7 +44,11 @@ export default async function CustomerProfilePage({ params }: PageProps) {
   const session = await auth()
   const role = session?.user.role
   const isOwner = role === "OWNER"
+  const isStaff = role === "STAFF"
   const canMutate = role === "OWNER" || role === "STAFF"
+  // STAFF can add customers/bills but can't see phone numbers, call/message
+  // them, or see bill-derived totals (Total Purchase, Avg Bill Value).
+  const showSensitive = !isStaff
 
   const { id } = await params
   const [customer, vipIds] = await Promise.all([getCustomerById(id), getVipCustomerIds()])
@@ -64,24 +68,26 @@ export default async function CustomerProfilePage({ params }: PageProps) {
             <div className="flex flex-col gap-1">
               <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">{customer.name}</h1>
               <div className="gradient-hairline h-0.5 w-12 rounded-full" />
-              <div className="flex items-center gap-3">
-                <a
-                  href={`tel:${customer.mobileNumber}`}
-                  className="flex items-center gap-1.5 text-sm text-accent hover:underline"
-                >
-                  <Phone {...ICON_PROPS} size={14} />
-                  {customer.mobileNumber}
-                </a>
-                <a
-                  href={waLink(customer.mobileNumber)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-sm text-success hover:underline"
-                >
-                  <MessageCircle {...ICON_PROPS} size={14} />
-                  WhatsApp
-                </a>
-              </div>
+              {showSensitive && (
+                <div className="flex items-center gap-3">
+                  <a
+                    href={`tel:${customer.mobileNumber}`}
+                    className="flex items-center gap-1.5 text-sm text-accent hover:underline"
+                  >
+                    <Phone {...ICON_PROPS} size={14} />
+                    {customer.mobileNumber}
+                  </a>
+                  <a
+                    href={waLink(customer.mobileNumber)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-success hover:underline"
+                  >
+                    <MessageCircle {...ICON_PROPS} size={14} />
+                    WhatsApp
+                  </a>
+                </div>
+              )}
             </div>
           </div>
 
@@ -127,15 +133,19 @@ export default async function CustomerProfilePage({ params }: PageProps) {
         <AppleCard glow>
           <StatTile label="Customer Since" value={formatDate(customer.customerSince)} />
         </AppleCard>
-        <AppleCard glow>
-          <StatTile label="Total Purchase" value={formatCurrency(customer.totalPurchaseAmount)} />
-        </AppleCard>
+        {showSensitive && (
+          <AppleCard glow>
+            <StatTile label="Total Purchase" value={formatCurrency(customer.totalPurchaseAmount)} />
+          </AppleCard>
+        )}
         <AppleCard glow>
           <StatTile label="Total Visits" value={customer.totalVisits} />
         </AppleCard>
-        <AppleCard glow>
-          <StatTile label="Avg Bill Value" value={formatCurrency(customer.averageBillValue)} />
-        </AppleCard>
+        {showSensitive && (
+          <AppleCard glow>
+            <StatTile label="Avg Bill Value" value={formatCurrency(customer.averageBillValue)} />
+          </AppleCard>
+        )}
         <AppleCard glow>
           <StatTile label="Last Visit" value={formatDate(customer.lastVisitDate)} />
         </AppleCard>

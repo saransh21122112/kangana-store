@@ -40,6 +40,12 @@ export interface CustomerListTableProps {
   emptyTitle: string
   emptyDescription?: string
   className?: string
+  /** STAFF can't see phone numbers or call/message customers. */
+  hidePhone?: boolean
+  /** STAFF can't see bill-derived amounts — only the Top Spenders view's
+   * metric is currency, so callers opt into masking it per-view rather
+   * than this component guessing from the metric's content. */
+  hideMetric?: boolean
 }
 
 const metricVariantClasses: Record<CustomerListMetricVariant, string> = {
@@ -61,6 +67,8 @@ export function CustomerListTable({
   emptyTitle,
   emptyDescription,
   className,
+  hidePhone,
+  hideMetric,
 }: CustomerListTableProps) {
   if (rows.length === 0) {
     return (
@@ -85,7 +93,9 @@ export function CustomerListTable({
               <Avatar name={customer.name} />
               <div className="flex min-w-0 flex-col">
                 <span className="truncate text-sm font-medium text-foreground">{customer.name}</span>
-                <span className="text-xs text-muted-foreground">{customer.mobileNumber}</span>
+                {!hidePhone && (
+                  <span className="text-xs text-muted-foreground">{customer.mobileNumber}</span>
+                )}
               </div>
             </Link>
 
@@ -101,32 +111,38 @@ export function CustomerListTable({
              * rejoin the outer flex row exactly as before.
              */}
             <div className="flex items-center justify-between gap-2 sm:contents">
-              <span
-                className={cn(
-                  "shrink-0 text-xs font-medium sm:text-right sm:text-sm",
-                  metricVariantClasses[metricVariant]
-                )}
-              >
-                {metricLabel}
-              </span>
+              {!hideMetric && (
+                <span
+                  className={cn(
+                    "shrink-0 text-xs font-medium sm:text-right sm:text-sm",
+                    metricVariantClasses[metricVariant]
+                  )}
+                >
+                  {metricLabel}
+                </span>
+              )}
 
               <div className="flex shrink-0 items-center gap-1.5">
-                <a
-                  href={`tel:${customer.mobileNumber}`}
-                  className="flex size-8 items-center justify-center rounded-full border border-border text-foreground hover:bg-muted"
-                  title="Call"
-                >
-                  <Phone {...ICON_PROPS} size={15} />
-                </a>
-                <a
-                  href={waLink(customer.mobileNumber)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex size-8 items-center justify-center rounded-full border border-border text-success hover:bg-muted"
-                  title="WhatsApp"
-                >
-                  <MessageCircle {...ICON_PROPS} size={15} />
-                </a>
+                {!hidePhone && (
+                  <>
+                    <a
+                      href={`tel:${customer.mobileNumber}`}
+                      className="flex size-8 items-center justify-center rounded-full border border-border text-foreground hover:bg-muted"
+                      title="Call"
+                    >
+                      <Phone {...ICON_PROPS} size={15} />
+                    </a>
+                    <a
+                      href={waLink(customer.mobileNumber)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex size-8 items-center justify-center rounded-full border border-border text-success hover:bg-muted"
+                      title="WhatsApp"
+                    >
+                      <MessageCircle {...ICON_PROPS} size={15} />
+                    </a>
+                  </>
+                )}
                 <Link
                   href={`/customers/${customer.id}`}
                   className="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted"

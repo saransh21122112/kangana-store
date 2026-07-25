@@ -13,7 +13,8 @@ const COLUMNS: CsvColumn[] = [
 ];
 
 export async function GET() {
-  const guard = await requireRole(["OWNER", "STAFF"]);
+  // OWNER only — this CSV includes bill amounts, which STAFF can't see.
+  const guard = await requireRole(["OWNER"]);
   if (!guard.ok) return guard.response;
 
   const bills = await prisma.bill.findMany({

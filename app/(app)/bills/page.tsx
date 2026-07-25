@@ -57,6 +57,12 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
   const session = await auth()
   const isViewer = session?.user.role === "VIEWER"
   const isOwner = session?.user.role === "OWNER"
+  const isStaff = session?.user.role === "STAFF"
+  // STAFF can add customers/bills but can't see bill amounts, customer
+  // phone numbers, process returns, download PDFs (they contain amounts),
+  // or export data (the CSV would leak both) — VIEWER is unaffected by
+  // this, only STAFF's scope was narrowed.
+  const showSensitive = !isStaff
 
   const params = await searchParams
 
@@ -89,17 +95,15 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <BillFilterBar />
-          {!isViewer && (
-            <>
-              <a href="/api/export/bills">
-                <AppleButton variant="secondary">
-                  <Download {...ICON_PROPS} size={18} />
-                  Export CSV
-                </AppleButton>
-              </a>
-              <AddBillGlobalSheet />
-            </>
+          {isOwner && (
+            <a href="/api/export/bills">
+              <AppleButton variant="secondary">
+                <Download {...ICON_PROPS} size={18} />
+                Export CSV
+              </AppleButton>
+            </a>
           )}
+          {!isViewer && <AddBillGlobalSheet hidePhone={isStaff} />}
         </div>
       </div>
 
@@ -120,7 +124,7 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
                 <th className="px-4 py-3">Bill No.</th>
                 <th className="px-4 py-3">Customer</th>
                 <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3 text-right">Amount</th>
+                {showSensitive && <th className="px-4 py-3 text-right">Amount</th>}
                 <th className="px-4 py-3" />
               </tr>
             </thead>
@@ -133,16 +137,20 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
                     <Link href={`/customers/${bill.customer.id}`} className="font-medium text-foreground hover:underline">
                       {bill.customer.name}
                     </Link>
-                    <div className="text-xs text-muted-foreground">{bill.customer.mobileNumber}</div>
+                    {showSensitive && (
+                      <div className="text-xs text-muted-foreground">{bill.customer.mobileNumber}</div>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{summarizeLineItems(bill.lineItems)}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-foreground">
-                    {formatCurrency(bill.amount)}
-                  </td>
+                  {showSensitive && (
+                    <td className="px-4 py-3 text-right font-semibold text-foreground">
+                      {formatCurrency(bill.amount)}
+                    </td>
+                  )}
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <DownloadBillButton billId={bill.id} />
-                      {!isViewer && (
+                      {showSensitive && <DownloadBillButton billId={bill.id} />}
+                      {isOwner && (
                         <RecordReturnSheet billId={bill.id} billNo={bill.billNo} lineItems={bill.lineItems} />
                       )}
                       {isOwner && <DeleteBillButton billId={bill.id} />}

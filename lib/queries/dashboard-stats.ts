@@ -30,21 +30,53 @@ export async function getTodaysCustomerCount(from: Date = new Date()): Promise<n
   return bills.length;
 }
 
-export type SalesPeriod = "today" | "month";
+export type SalesPeriod = "today" | "month" | "90days" | "6months" | "year";
+
+/** `from` shifted back by a calendar number of months, same day-of-month
+ * (clamped by `Date`'s own month-overflow rollover — acceptable here since
+ * these are wide rolling windows, not exact billing-cycle boundaries). */
+function monthsAgo(from: Date, months: number): Date {
+  return new Date(from.getFullYear(), from.getMonth() - months, from.getDate(), 0, 0, 0, 0);
+}
 
 /**
- * Sum of `Bill.amount` for the given period ("today" = local calendar day,
- * "month" = local calendar month to date), relative to `from`.
+ * Sum of `Bill.amount` for the given rolling/calendar period, relative to
+ * `from`: "today" (local calendar day), "month" (local calendar month to
+ * date), "90days"/"year" (rolling N-day/1-year windows ending today),
+ * "6months" (rolling 6-calendar-month window ending today).
  */
 export async function getTotalSales(period: SalesPeriod, from: Date = new Date()): Promise<number> {
-  const start = period === "today" ? startOfDay(from) : startOfMonth(from);
-  const end = period === "today" ? new Date(start.getTime() + DAY_MS) : new Date(from.getTime() + 1);
+  const end = new Date(from.getTime() + 1);
+  let start: Date;
+  switch (period) {
+    case "today":
+      start = startOfDay(from);
+      break;
+    case "month":
+      start = startOfMonth(from);
+      break;
+    case "90days":
+      start = new Date(startOfDay(from).getTime() - 89 * DAY_MS);
+      break;
+    case "6months":
+      start = monthsAgo(from, 6);
+      break;
+    case "year":
+      start = monthsAgo(from, 12);
+      break;
+  }
 
   const result = await prisma.bill.aggregate({
     where: { date: { gte: start, lt: end } },
     _sum: { amount: true },
   });
 
+  return result._sum.amount ?? 0;
+}
+
+/** Sum of `Bill.amount` across every bill ever recorded — no date filter. */
+export async function getAllTimeTotalSales(): Promise<number> {
+  const result = await prisma.bill.aggregate({ _sum: { amount: true } });
   return result._sum.amount ?? 0;
 }
 
@@ -141,6 +173,10 @@ export interface DashboardStats {
   todaysCustomerCount: number;
   totalSalesToday: number;
   totalSalesMonth: number;
+  totalSales90Days: number;
+  totalSales6Months: number;
+  totalSalesYear: number;
+  allTimeTotalSales: number;
   repeatCustomerCount: number;
   storeAverageBillValue: number;
   dailySales: DailySales[];
@@ -159,6 +195,10 @@ export async function getDashboardStats(from: Date = new Date()): Promise<Dashbo
     todaysCustomerCount,
     totalSalesToday,
     totalSalesMonth,
+    totalSales90Days,
+    totalSales6Months,
+    totalSalesYear,
+    allTimeTotalSales,
     repeatCustomerCount,
     storeAverageBillValue,
     dailySales,
@@ -167,6 +207,10 @@ export async function getDashboardStats(from: Date = new Date()): Promise<Dashbo
     getTodaysCustomerCount(from),
     getTotalSales("today", from),
     getTotalSales("month", from),
+    getTotalSales("90days", from),
+    getTotalSales("6months", from),
+    getTotalSales("year", from),
+    getAllTimeTotalSales(),
     getRepeatCustomerCount(),
     getStoreAverageBillValue(),
     getDailySalesLast30Days(from),
@@ -177,6 +221,10 @@ export async function getDashboardStats(from: Date = new Date()): Promise<Dashbo
     todaysCustomerCount,
     totalSalesToday,
     totalSalesMonth,
+    totalSales90Days,
+    totalSales6Months,
+    totalSalesYear,
+    allTimeTotalSales,
     repeatCustomerCount,
     storeAverageBillValue,
     dailySales,

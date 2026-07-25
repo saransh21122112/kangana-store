@@ -21,7 +21,7 @@ export default async function AppGroupLayout({
 
   return (
     <AppShell role={session?.user.role}>
-      <CommandPalette />
+      <CommandPalette hidePhone={session?.user.role === "STAFF"} />
       {children}
     </AppShell>
   );
