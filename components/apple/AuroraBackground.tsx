@@ -28,6 +28,16 @@ export interface AuroraBackgroundProps {
  * Light mode keeps this very low-opacity (a shop counter screen in
  * daylight needs the page to stay legible, not "wow"); dark mode is where
  * the neon glow actually shows up.
+ *
+ * Blob translucency uses the plain `opacity` property (`opacity-[0.08]`),
+ * NOT Tailwind's `bg-accent/[0.08]` slash-opacity modifier — a real bug,
+ * reported from an old/never-updated Chrome on a shop counter PC, where the
+ * blobs rendered as solid, fully opaque circles blocking the whole page.
+ * Tailwind v4 compiles slash-opacity on a CSS-variable color to
+ * `color-mix()` behind an `@supports` guard, and its *fallback* for
+ * browsers without `color-mix()` (any Chrome < 111) is the plain, fully
+ * opaque `background-color: var(--accent)` — not a dimmer approximation.
+ * Plain `opacity` has no such gap; it's supported everywhere this app runs.
  */
 export function AuroraBackground({ className }: AuroraBackgroundProps) {
   return (
@@ -50,15 +60,15 @@ export function AuroraBackground({ className }: AuroraBackgroundProps) {
         }}
       />
       <div
-        className="aurora-blob absolute left-[10%] top-[-10%] size-[38rem] rounded-full bg-accent/[0.08] blur-[100px] dark:bg-accent/35"
+        className="aurora-blob absolute left-[10%] top-[-10%] size-[38rem] rounded-full bg-accent opacity-[0.08] blur-[100px] dark:opacity-35"
         style={{ animation: "aurora-drift-1 22s ease-in-out infinite" }}
       />
       <div
-        className="aurora-blob absolute right-[5%] top-[10%] size-[32rem] rounded-full bg-gold/[0.08] blur-[100px] dark:bg-gold/35"
+        className="aurora-blob absolute right-[5%] top-[10%] size-[32rem] rounded-full bg-gold opacity-[0.08] blur-[100px] dark:opacity-35"
         style={{ animation: "aurora-drift-2 26s ease-in-out infinite" }}
       />
       <div
-        className="aurora-blob absolute bottom-[-15%] left-[25%] hidden size-[34rem] rounded-full bg-[oklch(0.55_0.2_300)]/28 blur-[100px] dark:block"
+        className="aurora-blob absolute bottom-[-15%] left-[25%] hidden size-[34rem] rounded-full bg-[oklch(0.55_0.2_300)] opacity-[0.28] blur-[100px] dark:block"
         style={{ animation: "aurora-drift-3 30s ease-in-out infinite" }}
       />
     </div>

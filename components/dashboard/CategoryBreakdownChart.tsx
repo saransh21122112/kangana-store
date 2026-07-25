@@ -19,12 +19,15 @@ const currencyFormatter = new Intl.NumberFormat("en-IN", {
 
 /**
  * Fixed, consistent category color palette. Reuses the Stage 14 theme
- * tokens (`--accent`/`--gold`/`--success`/`--warning`/`--danger`) plus two
- * extra fixed hex swatches matching `Avatar`'s warm palette (already chosen
- * to be legible in both light and dark mode) so this never runs out of
- * distinct colors even if new bill categories are added later. `--vip` was
- * dropped in favor of `--gold` directly since Stage 14 made them the same
- * color — keeping both would be a redundant slot.
+ * tokens (`--accent`/`--gold`/`--success`/`--warning`/`--danger`) plus fixed
+ * hex swatches matching `Avatar`'s warm palette (already chosen to be
+ * legible in both light and dark mode) so this never runs out of distinct
+ * colors even as new bill categories are added later. `--vip` was dropped
+ * in favor of `--gold` directly since Stage 14 made them the same color —
+ * keeping both would be a redundant slot. Extended to 9 entries (from 7)
+ * after the bulk inventory import added 3 new broad categories
+ * (Skincare/Accessories/Other) alongside the store's existing 6, so a full
+ * category spread no longer repeats a color.
  */
 const CATEGORY_COLORS = [
   "var(--accent)",
@@ -34,6 +37,8 @@ const CATEGORY_COLORS = [
   "var(--danger)",
   "#6B4A6E",
   "#5AC8FA",
+  "#FF9F0A",
+  "#BF5AF2",
 ]
 
 /**

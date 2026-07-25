@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
-import { Filter, X } from "lucide-react"
+import { Filter, Search, X } from "lucide-react"
 
 import { AppleButton } from "@/components/apple/AppleButton"
 import { AppleSheet } from "@/components/apple/AppleSheet"
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ICON_PROPS } from "@/lib/icon-map"
 
@@ -41,7 +42,29 @@ export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
     lowStockOnly: searchParams.get("lowStockOnly") === "true",
   })
 
+  const [searchDraft, setSearchDraft] = React.useState(searchParams.get("search") ?? "")
+
   const activeCount = FILTER_KEYS.filter((key) => searchParams.get(key)).length
+
+  // Debounced so typing doesn't push a new URL/re-fetch on every keystroke —
+  // this filters across ~5,300 bulk-imported items via the server query, so
+  // each push is a real round-trip, not free client-side filtering.
+  React.useEffect(() => {
+    const trimmed = searchDraft.trim()
+    const current = searchParams.get("search") ?? ""
+    if (trimmed === current) return
+    const timeout = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      if (trimmed) {
+        params.set("search", trimmed)
+      } else {
+        params.delete("search")
+      }
+      router.push(`${pathname}?${params.toString()}`)
+    }, 350)
+    return () => clearTimeout(timeout)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fires on searchDraft only; pathname/router/searchParams are stable per-render refs, not reactive inputs
+  }, [searchDraft])
 
   function openSheet() {
     setDraft({
@@ -76,6 +99,20 @@ export function InventoryFilterBar({ categories }: InventoryFilterBarProps) {
 
   return (
     <>
+      <div className="relative">
+        <Search
+          {...ICON_PROPS}
+          size={16}
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
+          value={searchDraft}
+          onChange={(e) => setSearchDraft(e.target.value)}
+          placeholder="Search name or brand…"
+          className="w-56 pl-9"
+        />
+      </div>
+
       <AppleButton variant="secondary" onClick={openSheet}>
         <Filter {...ICON_PROPS} size={18} />
         Filters

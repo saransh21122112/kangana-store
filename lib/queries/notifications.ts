@@ -53,6 +53,44 @@ export async function createNotificationIfNotExists(
   return { created: true, notification };
 }
 
+export interface BatchNotificationResult {
+  created: number;
+  skipped: number;
+}
+
+/**
+ * Batched variant of `createNotificationIfNotExists` for call sites that may
+ * have a large (hundreds/thousands) candidate list — the low-stock cron
+ * check, in particular, went from a handful of items to several thousand
+ * once the store's full product catalog was bulk-imported into
+ * `InventoryItem`. Calling `createNotificationIfNotExists` in a loop means 2
+ * sequential Neon round-trips per item; at that volume the daily cron route
+ * would take minutes and risk exceeding the serverless function's execution
+ * time limit. This does the same dedupe-by-type-within-24h logic in exactly
+ * 2 queries total, regardless of how many candidates are passed in.
+ */
+export async function createNotificationsIfNotExistsBatch(
+  items: CreateNotificationInput[]
+): Promise<BatchNotificationResult> {
+  if (items.length === 0) {
+    return { created: 0, skipped: 0 };
+  }
+
+  const since = new Date(Date.now() - DEDUPE_WINDOW_MS);
+  const existing = await prisma.ownerNotification.findMany({
+    where: { type: { in: items.map((i) => i.type) }, createdAt: { gte: since } },
+    select: { type: true },
+  });
+  const existingTypes = new Set(existing.map((e) => e.type));
+
+  const toCreate = items.filter((i) => !existingTypes.has(i.type));
+  if (toCreate.length > 0) {
+    await prisma.ownerNotification.createMany({ data: toCreate });
+  }
+
+  return { created: toCreate.length, skipped: items.length - toCreate.length };
+}
+
 /** Unread notifications, most recent first — for the bell's dropdown/list and its badge count. */
 export async function getUnreadNotifications(): Promise<OwnerNotification[]> {
   return prisma.ownerNotification.findMany({

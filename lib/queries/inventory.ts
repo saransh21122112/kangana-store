@@ -9,12 +9,23 @@ export interface GetAllInventoryItemsParams {
   /** Exact match against `category`. */
   category?: string;
   /**
+   * Case-insensitive substring match against `name` OR `brand` — backs the
+   * bill-creation search bar, which needs to find an item across ~5,000+
+   * SKUs by typing a few characters of either the product name or its brand.
+   */
+  search?: string;
+  /**
    * Filters to items at or below their own `lowStockThreshold`. Prisma can't
    * compare two columns of the same row directly in a simple `where`, so
    * this is done via fetch-then-filter-in-JS (fine at this app's scale)
    * rather than reaching for `$queryRaw`.
    */
   lowStockOnly?: boolean;
+  /** Caps the result count — defaults to 20 when `search` is set (a
+   * search-bar dropdown only ever needs a short list of matches), otherwise
+   * unbounded (the full `/inventory` page listing). Pass explicitly to
+   * override either default. */
+  limit?: number;
 }
 
 /**
@@ -25,6 +36,7 @@ export async function getAllInventoryItems(
   params: GetAllInventoryItemsParams = {}
 ): Promise<InventoryItem[]> {
   const category = params.category?.trim();
+  const search = params.search?.trim();
 
   const conditions: Prisma.InventoryItemWhereInput[] = [];
 
@@ -32,9 +44,19 @@ export async function getAllInventoryItems(
     conditions.push({ category });
   }
 
+  if (search) {
+    conditions.push({
+      OR: [
+        { name: { contains: search, mode: "insensitive" } },
+        { brand: { contains: search, mode: "insensitive" } },
+      ],
+    });
+  }
+
   const items = await prisma.inventoryItem.findMany({
     where: conditions.length > 0 ? { AND: conditions } : undefined,
     orderBy: { name: "asc" },
+    take: params.limit ?? (search ? 20 : undefined),
   });
 
   if (params.lowStockOnly) {
@@ -53,6 +75,9 @@ export async function createInventoryItem(data: InventoryItemInput): Promise<Inv
     data: {
       name: data.name,
       category: data.category,
+      brand: data.brand,
+      unitType: data.unitType,
+      ratePerUnit: data.ratePerUnit,
       quantity: data.quantity,
       lowStockThreshold: data.lowStockThreshold,
     },
@@ -79,6 +104,9 @@ export async function updateInventoryItem(
     data: {
       ...(data.name !== undefined ? { name: data.name } : {}),
       ...(data.category !== undefined ? { category: data.category } : {}),
+      ...(data.brand !== undefined ? { brand: data.brand } : {}),
+      ...(data.unitType !== undefined ? { unitType: data.unitType } : {}),
+      ...(data.ratePerUnit !== undefined ? { ratePerUnit: data.ratePerUnit } : {}),
       ...(data.lowStockThreshold !== undefined
         ? { lowStockThreshold: data.lowStockThreshold }
         : {}),

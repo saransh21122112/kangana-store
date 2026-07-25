@@ -13,21 +13,21 @@ datasource db {
 }
 
 model Customer {
-  id                  String    @id @default(cuid())
-  name                String
-  mobileNumber        String    @unique
-  birthday            DateTime?
-  anniversary         DateTime?
-  areaLocality        String?
-  gender              Gender?
-  customerSince       DateTime  @default(now())
-  loyaltyPoints       Int       @default(0)
-  favouriteCategory   String?
-  notes               String?
-  bills               Bill[]
-  messagesLog         MessageLog[]
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                String       @id @default(cuid())
+  name              String
+  mobileNumber      String       @unique
+  birthday          DateTime?
+  anniversary       DateTime?
+  areaLocality      String?
+  gender            Gender?
+  customerSince     DateTime     @default(now())
+  loyaltyPoints     Int          @default(0)
+  favouriteCategory String?
+  notes             String?
+  bills             Bill[]
+  messagesLog       MessageLog[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   totalPurchaseAmount Float     @default(0)
   totalVisits         Int       @default(0)
@@ -48,17 +48,17 @@ enum Gender {
 }
 
 model Bill {
-  id         String         @id @default(cuid())
-  billNo     String         @unique
-  date       DateTime       @default(now())
+  id         String   @id @default(cuid())
+  billNo     String   @unique
+  date       DateTime @default(now())
   // Sum of lineItems' lineTotal at creation time — NOT reduced by later
   // returns (BillReturn rows track those separately). Use each
   // BillLineItem's net-of-returns total, or recalculateCustomerRollup's
   // logic, for a customer's real current spend.
   amount     Float
-  customer   Customer       @relation(fields: [customerId], references: [id])
+  customer   Customer @relation(fields: [customerId], references: [id])
   customerId String
-  createdAt  DateTime       @default(now())
+  createdAt  DateTime @default(now())
 
   // Header row over the actual purchased things (Stage 21) — each with its
   // own category/optional stocked item/quantity/price. Replaced Bill's
@@ -66,19 +66,19 @@ model Bill {
   // in the migration that added this comment once every query/UI path was
   // rewritten and verified against the 100 pre-existing bills backfilled
   // into this table.
-  lineItems  BillLineItem[]
+  lineItems BillLineItem[]
 
   @@index([date])
 }
 
 model MessageTemplate {
-  id        String   @id @default(cuid())
+  id        String      @id @default(cuid())
   type      MessageType
   title     String
   body      String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  isActive  Boolean     @default(true)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
 }
 
 enum MessageType {
@@ -92,14 +92,14 @@ enum MessageType {
 }
 
 model MessageLog {
-  id          String       @id @default(cuid())
-  customer    Customer     @relation(fields: [customerId], references: [id])
-  customerId  String
-  type        MessageType
-  bodySent    String
-  status      MessageStatus @default(PENDING)
-  sentAt      DateTime?
-  createdAt   DateTime     @default(now())
+  id         String        @id @default(cuid())
+  customer   Customer      @relation(fields: [customerId], references: [id])
+  customerId String
+  type       MessageType
+  bodySent   String
+  status     MessageStatus @default(PENDING)
+  sentAt     DateTime?
+  createdAt  DateTime      @default(now())
 
   @@index([status])
   @@index([type])
@@ -114,11 +114,11 @@ enum MessageStatus {
 }
 
 model OwnerNotification {
-  id          String   @id @default(cuid())
-  type        String
-  message     String
-  isRead      Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id        String   @id @default(cuid())
+  type      String
+  message   String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
 }
 
 model User {
@@ -149,19 +149,21 @@ enum Role {
 // existing model/datasource/generator block touched. See MEMORY.md's
 // "Stage 9 — Settings" section for the full rationale.
 model AppSettings {
-  id                  String   @id @default("singleton")
-  storeName           String   @default("Kangna Beauty & Jewellery")
-  logoUrl             String?
-  accentColor         String   @default("#0A84FF")
-  categories          String[] @default(["Jewellery - Gold", "Jewellery - Diamond", "Jewellery - Silver", "Beauty Services", "Skincare", "Makeup", "Other"])
-  inactiveThreshold30 Int      @default(30)
-  inactiveThreshold60 Int      @default(60)
-  inactiveThreshold90 Int      @default(90)
-  /** Loyalty points earned per rupee spent, e.g. 0.01 = 1 point per ₹100.
+  id                    String   @id @default("singleton")
+  storeName             String   @default("Kangna Beauty & Jewellery")
+  logoUrl               String?
+  accentColor           String   @default("#0A84FF")
+  categories            String[] @default(["Jewellery", "Bangles", "Makeup", "Innerwear", "Handbag", "Bridal Package", "Skincare", "Accessories", "Other"])
+  inactiveThreshold30   Int      @default(30)
+  inactiveThreshold60   Int      @default(60)
+  inactiveThreshold90   Int      @default(90)
+  /**
+   * Loyalty points earned per rupee spent, e.g. 0.01 = 1 point per ₹100.
    * Configurable rather than fixed (Stage 21) so the store can tune it
-   * without a code change. */
-  loyaltyPointsPerRupee Float  @default(0.01)
-  updatedAt           DateTime @updatedAt
+   * without a code change.
+   */
+  loyaltyPointsPerRupee Float    @default(0.01)
+  updatedAt             DateTime @updatedAt
 }
 
 // --- Stage 19 addition ------------------------------------------------------
@@ -170,16 +172,35 @@ model AppSettings {
 // decision for this stage). Additive only, same "one new model" precedent as
 // AppSettings above.
 model InventoryItem {
-  id                String   @id @default(cuid())
+  id                String         @id @default(cuid())
   name              String
   category          String
-  quantity          Int      @default(0)
-  lowStockThreshold Int      @default(5)
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  /**
+   * Brand/manufacturer (e.g. "LAKME", "SUGAR") — distinct from `category`,
+   * which stays one of the store's broad reporting buckets (Makeup, Skincare,
+   * etc.) so the dashboard's category chart doesn't explode into one slice
+   * per brand. Used for search/filtering only.
+   */
+  brand             String?
+  /**
+   * Selling unit ("Pcs", "Box", "Dozen", "PKT", "Set") — how `ratePerUnit`
+   * is priced. Editable later; not enforced against an enum since a store
+   * may introduce new units.
+   */
+  unitType          String         @default("Pcs")
+  /**
+   * Price per `unitType`. Defaults to 0 for bulk-imported items with no
+   * source price yet — filled in later via the Inventory page.
+   */
+  ratePerUnit       Float          @default(0)
+  quantity          Int            @default(0)
+  lowStockThreshold Int            @default(5)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
   lineItems         BillLineItem[]
 
   @@index([category])
+  @@index([brand])
 }
 
 // --- Stage 21 addition ------------------------------------------------------
@@ -207,7 +228,7 @@ model BillLineItem {
   lineTotal       Float
   createdAt       DateTime       @default(now())
 
-  returns         BillReturn[]
+  returns BillReturn[]
 
   @@index([billId])
   @@index([inventoryItemId])
