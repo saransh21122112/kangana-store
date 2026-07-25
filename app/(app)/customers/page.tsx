@@ -81,7 +81,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
             {customers.length} customer{customers.length === 1 ? "" : "s"} matching.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <CustomerFilterBar />
           {!isViewer && (
             <>

@@ -3,10 +3,12 @@
 import * as React from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { LayoutDashboard, Users, Receipt, MessageCircle, MoreHorizontal, Search } from "lucide-react"
+import { useTheme } from "next-themes"
+import { LayoutDashboard, Users, Receipt, MessageCircle, MoreHorizontal, Search, Sun, Moon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { ICON_PROPS } from "@/lib/icon-map"
+import { useMounted } from "@/lib/use-media-query"
 import { SIDEBAR_NAV_ITEMS } from "@/components/layout/Sidebar"
 import { openCommandPalette } from "@/components/search/CommandPalette"
 import { NotificationBell } from "@/components/notifications/NotificationBell"
@@ -45,6 +47,8 @@ export interface BottomTabBarProps {
 export function BottomTabBar({ className, role }: BottomTabBarProps) {
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = React.useState(false)
+  const { resolvedTheme, setTheme } = useTheme()
+  const mounted = useMounted()
   const isViewer = role === "VIEWER"
   const isStaff = role === "STAFF"
   const hiddenLabels = isViewer ? VIEWER_HIDDEN_LABELS : isStaff ? STAFF_HIDDEN_LABELS : null
@@ -124,6 +128,22 @@ export function BottomTabBar({ className, role }: BottomTabBarProps) {
                 </Link>
               )
             })}
+
+            {/* Dark mode was previously desktop-Sidebar-only — mobile had
+                no way to reach it at all. Same next-themes toggle, same
+                pattern as Sidebar.tsx. */}
+            <button
+              type="button"
+              onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-foreground hover:bg-muted"
+            >
+              {mounted && resolvedTheme === "dark" ? (
+                <Sun {...ICON_PROPS} />
+              ) : (
+                <Moon {...ICON_PROPS} />
+              )}
+              {mounted ? (resolvedTheme === "dark" ? "Light mode" : "Dark mode") : "Theme"}
+            </button>
           </div>
         </SheetContent>
       </Sheet>

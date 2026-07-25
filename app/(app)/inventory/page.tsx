@@ -53,7 +53,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
             {items.length} item{items.length === 1 ? "" : "s"} matching.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <InventoryFilterBar categories={settings.categories} />
           {canMutate && <AddInventoryItemSheet categories={settings.categories} />}
         </div>

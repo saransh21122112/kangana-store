@@ -74,10 +74,13 @@ export function CustomerListTable({
     <StaggerList className={cn("flex flex-col gap-2", className)}>
       {rows.map(({ customer, metricLabel, metricVariant = "default" }) => (
         <StaggerItem key={customer.id}>
-          <AppleCard noPadding className="flex items-center gap-3 p-3 sm:p-4">
+          <AppleCard
+            noPadding
+            className="flex flex-col gap-2 p-3 sm:flex-row sm:items-center sm:gap-3 sm:p-4"
+          >
             <Link
               href={`/customers/${customer.id}`}
-              className="flex min-w-0 flex-1 items-center gap-3"
+              className="flex min-w-0 items-center gap-3 sm:flex-1"
             >
               <Avatar name={customer.name} />
               <div className="flex min-w-0 flex-col">
@@ -86,39 +89,52 @@ export function CustomerListTable({
               </div>
             </Link>
 
-            <span
-              className={cn(
-                "shrink-0 text-right text-xs font-medium sm:text-sm",
-                metricVariantClasses[metricVariant]
-              )}
-            >
-              {metricLabel}
-            </span>
+            {/*
+             * Metric label + action buttons: below the identity row on
+             * narrow screens (own row, space-between), back to inline flex
+             * items on `sm:` and up via `sm:contents` — a real bug, reported
+             * via a mobile screenshot: at 390px, avatar + a long metric
+             * string ("Member since Jul 2026") + 3 icon buttons left almost
+             * no room for the customer's own name, truncating it down to a
+             * single letter. `sm:contents` makes this wrapper "disappear"
+             * from the box model above that breakpoint, so its two children
+             * rejoin the outer flex row exactly as before.
+             */}
+            <div className="flex items-center justify-between gap-2 sm:contents">
+              <span
+                className={cn(
+                  "shrink-0 text-xs font-medium sm:text-right sm:text-sm",
+                  metricVariantClasses[metricVariant]
+                )}
+              >
+                {metricLabel}
+              </span>
 
-            <div className="flex shrink-0 items-center gap-1.5">
-              <a
-                href={`tel:${customer.mobileNumber}`}
-                className="flex size-8 items-center justify-center rounded-full border border-border text-foreground hover:bg-muted"
-                title="Call"
-              >
-                <Phone {...ICON_PROPS} size={15} />
-              </a>
-              <a
-                href={waLink(customer.mobileNumber)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex size-8 items-center justify-center rounded-full border border-border text-success hover:bg-muted"
-                title="WhatsApp"
-              >
-                <MessageCircle {...ICON_PROPS} size={15} />
-              </a>
-              <Link
-                href={`/customers/${customer.id}`}
-                className="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted"
-                title="View profile"
-              >
-                <ChevronRight {...ICON_PROPS} size={15} />
-              </Link>
+              <div className="flex shrink-0 items-center gap-1.5">
+                <a
+                  href={`tel:${customer.mobileNumber}`}
+                  className="flex size-8 items-center justify-center rounded-full border border-border text-foreground hover:bg-muted"
+                  title="Call"
+                >
+                  <Phone {...ICON_PROPS} size={15} />
+                </a>
+                <a
+                  href={waLink(customer.mobileNumber)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex size-8 items-center justify-center rounded-full border border-border text-success hover:bg-muted"
+                  title="WhatsApp"
+                >
+                  <MessageCircle {...ICON_PROPS} size={15} />
+                </a>
+                <Link
+                  href={`/customers/${customer.id}`}
+                  className="flex size-8 items-center justify-center rounded-full border border-border text-muted-foreground hover:bg-muted"
+                  title="View profile"
+                >
+                  <ChevronRight {...ICON_PROPS} size={15} />
+                </Link>
+              </div>
             </div>
           </AppleCard>
         </StaggerItem>

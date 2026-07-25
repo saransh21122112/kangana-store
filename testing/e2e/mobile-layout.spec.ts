@@ -59,4 +59,28 @@ test.describe("Mobile layout — no page-level horizontal overflow", () => {
     })
     await expect(page.getByRole("tab", { name: "Activity" })).toBeInViewport()
   })
+
+  /**
+   * Separate bug, same "mobile layout" report: `CustomerListTable`'s row —
+   * avatar + a long metric string ("Member since Jul 2026") + 3 icon
+   * buttons, all `shrink-0` — left almost no room for the customer's own
+   * name at 390px, truncating it down to a single visible character.
+   * `truncate` (`overflow: hidden` + ellipsis) does NOT remove the text
+   * from the DOM, so a `textContent`/`toHaveText` assertion would pass even
+   * on the broken layout — this asserts the rendered *width* of the name
+   * element instead, which is what actually distinguishes "readable" from
+   * "clipped to a sliver" (confirmed against the pre-fix component: this
+   * failed with a ~10-20px box before the fix, passes with a 100px+ box
+   * after it).
+   */
+  test("/lists customer name renders wide enough to be readable, not clipped to a sliver", async ({
+    page,
+  }) => {
+    await page.goto("/lists?view=new")
+    const firstName = page.locator('a[href^="/customers/"] span.truncate').first()
+    await expect(firstName).toBeVisible()
+    const box = await firstName.boundingBox()
+    expect(box).not.toBeNull()
+    expect(box!.width).toBeGreaterThan(80)
+  })
 })

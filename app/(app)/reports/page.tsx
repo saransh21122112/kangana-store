@@ -60,7 +60,7 @@ export default async function ReportsPage() {
           </p>
         </div>
         {!isViewer && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <a href="/api/export/customers">
               <AppleButton variant="secondary">
                 <Download {...ICON_PROPS} size={18} />
