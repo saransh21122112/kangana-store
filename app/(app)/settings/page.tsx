@@ -2,9 +2,11 @@ import { redirect } from "next/navigation"
 
 import { auth } from "@/lib/auth"
 import { getSettings } from "@/lib/queries/settings"
+import { getRecentActivity } from "@/lib/queries/activity-log"
 import { prisma } from "@/lib/prisma"
 import { SettingsTabs } from "@/components/settings/SettingsTabs"
 import type { UserRow } from "@/components/settings/UserManagementTable"
+import type { ActivityLogRow } from "@/components/settings/ActivityLogTable"
 
 /**
  * Settings page (Stage 9's final integration). Server component: fetches
@@ -30,7 +32,7 @@ export default async function SettingsPage() {
     redirect("/customers")
   }
 
-  const [settings, users] = await Promise.all([
+  const [settings, users, activity] = await Promise.all([
     getSettings(),
     isOwner
       ? prisma.user.findMany({
@@ -38,6 +40,7 @@ export default async function SettingsPage() {
           orderBy: { createdAt: "asc" },
         })
       : Promise.resolve([]),
+    isOwner ? getRecentActivity() : Promise.resolve([]),
   ])
 
   const initialUsers: UserRow[] = users.map((user) => ({
@@ -46,6 +49,14 @@ export default async function SettingsPage() {
     email: user.email,
     role: user.role,
     createdAt: user.createdAt,
+  }))
+
+  const initialActivity: ActivityLogRow[] = activity.map((entry) => ({
+    id: entry.id,
+    userEmail: entry.userEmail,
+    action: entry.action,
+    summary: entry.summary,
+    createdAt: entry.createdAt,
   }))
 
   return (
@@ -73,6 +84,7 @@ export default async function SettingsPage() {
           inactiveThreshold90: settings.inactiveThreshold90,
         }}
         initialUsers={initialUsers}
+        initialActivity={initialActivity}
       />
     </div>
   )

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/requireRole";
 import { billSchema } from "@/lib/validations/bill";
 import { createBillWithRollup } from "@/lib/queries/bills";
+import { logActivity } from "@/lib/queries/activity-log";
 
 export async function POST(req: Request) {
   const guard = await requireRole(["OWNER", "STAFF"]);
@@ -44,6 +45,15 @@ export async function POST(req: Request) {
       { status: 404 }
     );
   }
+
+  await logActivity({
+    userId: guard.session.user.id,
+    userEmail: guard.session.user.email,
+    action: "bill.create",
+    entityType: "Bill",
+    entityId: result.bill.id,
+    summary: `Created bill ${result.bill.billNo} for ${result.customer.name} (₹${result.bill.amount.toLocaleString("en-IN")})`,
+  });
 
   return NextResponse.json({ bill: result.bill, customer: result.customer }, { status: 201 });
 }

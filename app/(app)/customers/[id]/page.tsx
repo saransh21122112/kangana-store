@@ -10,6 +10,7 @@ import { Avatar } from "@/components/apple/Avatar"
 import { CustomerBadges } from "@/components/customers/CustomerBadges"
 import { CustomerProfileTabs } from "@/components/customers/CustomerProfileTabs"
 import { DeleteCustomerButton } from "@/components/customers/DeleteCustomerButton"
+import { LoyaltyPointsAdjuster } from "@/components/customers/LoyaltyPointsAdjuster"
 import { SendMessageSheet } from "@/components/messages/SendMessageSheet"
 import { getCategoryIcon, ICON_PROPS } from "@/lib/icon-map"
 
@@ -42,6 +43,7 @@ export default async function CustomerProfilePage({ params }: PageProps) {
   const session = await auth()
   const role = session?.user.role
   const isOwner = role === "OWNER"
+  const canMutate = role === "OWNER" || role === "STAFF"
 
   const { id } = await params
   const [customer, vipIds] = await Promise.all([getCustomerById(id), getVipCustomerIds()])
@@ -134,8 +136,9 @@ export default async function CustomerProfilePage({ params }: PageProps) {
         <AppleCard>
           <StatTile label="Last Visit" value={formatDate(customer.lastVisitDate)} />
         </AppleCard>
-        <AppleCard>
+        <AppleCard className="flex flex-col gap-2">
           <StatTile label="Loyalty Points" value={customer.loyaltyPoints} />
+          {canMutate && <LoyaltyPointsAdjuster customerId={customer.id} />}
         </AppleCard>
       </div>
 

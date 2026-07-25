@@ -48,30 +48,27 @@ enum Gender {
 }
 
 model Bill {
-  id              String         @id @default(cuid())
-  billNo          String         @unique
-  date            DateTime       @default(now())
-  amount          Float
-  category        String
-  customer        Customer       @relation(fields: [customerId], references: [id])
-  customerId      String
-  createdAt       DateTime       @default(now())
+  id         String         @id @default(cuid())
+  billNo     String         @unique
+  date       DateTime       @default(now())
+  // Sum of lineItems' lineTotal at creation time — NOT reduced by later
+  // returns (BillReturn rows track those separately). Use each
+  // BillLineItem's net-of-returns total, or recalculateCustomerRollup's
+  // logic, for a customer's real current spend.
+  amount     Float
+  customer   Customer       @relation(fields: [customerId], references: [id])
+  customerId String
+  createdAt  DateTime       @default(now())
 
-  // --- Stage 20 addition -----------------------------------------------
-  // Optional link to a stocked InventoryItem — deliberately optional (not
-  // every bill sells a specific tracked item; service categories like
-  // "Beauty Services" never set this). When set, `quantitySold` is also
-  // required and `createBillWithRollup` atomically decrements the item's
-  // stock in the same transaction as bill creation; `deleteBill` restores
-  // it. This reverses Stage 19's "standalone, not linked to Bill" scope
-  // decision — an explicit, user-approved follow-up, not an oversight.
-  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
-  inventoryItemId String?
-  quantitySold    Int?
+  // Header row over the actual purchased things (Stage 21) — each with its
+  // own category/optional stocked item/quantity/price. Replaced Bill's
+  // original flat category/inventoryItemId/quantitySold columns, removed
+  // in the migration that added this comment once every query/UI path was
+  // rewritten and verified against the 100 pre-existing bills backfilled
+  // into this table.
+  lineItems  BillLineItem[]
 
   @@index([date])
-  @@index([category])
-  @@index([inventoryItemId])
 }
 
 model MessageTemplate {
@@ -131,6 +128,9 @@ model User {
   password  String
   role      Role     @default(OWNER)
   createdAt DateTime @default(now())
+
+  activityLogs ActivityLog[]
+  billReturns  BillReturn[]
 }
 
 enum Role {
@@ -157,6 +157,10 @@ model AppSettings {
   inactiveThreshold30 Int      @default(30)
   inactiveThreshold60 Int      @default(60)
   inactiveThreshold90 Int      @default(90)
+  /** Loyalty points earned per rupee spent, e.g. 0.01 = 1 point per ₹100.
+   * Configurable rather than fixed (Stage 21) so the store can tune it
+   * without a code change. */
+  loyaltyPointsPerRupee Float  @default(0.01)
   updatedAt           DateTime @updatedAt
 }
 
@@ -173,7 +177,82 @@ model InventoryItem {
   lowStockThreshold Int      @default(5)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
-  bills             Bill[]
+  lineItems         BillLineItem[]
 
   @@index([category])
+}
+
+// --- Stage 21 addition ------------------------------------------------------
+// Bill line items: a Bill becomes a header record; the actual purchased
+// things (each with its own category/optional stocked item/quantity/price)
+// live here, one-to-many. Replaces Bill's old single category/amount/
+// inventoryItemId/quantitySold shape — see the migration note on `Bill`
+// below for how the 100 pre-existing bills were carried over.
+//
+// Pricing: either `unitPrice` is set (and `lineTotal = unitPrice * quantity`)
+// or a flat `lineTotal` is entered directly with `unitPrice` left null —
+// staff's choice per line, per the explicit brief for this stage. Whichever
+// is provided, `lineTotal` is always the stored, authoritative amount for
+// that line (never recomputed from `unitPrice` after the fact), since a
+// later partial return needs a stable per-line total to prorate against.
+model BillLineItem {
+  id              String         @id @default(cuid())
+  bill            Bill           @relation(fields: [billId], references: [id], onDelete: Cascade)
+  billId          String
+  category        String
+  inventoryItem   InventoryItem? @relation(fields: [inventoryItemId], references: [id])
+  inventoryItemId String?
+  quantity        Int            @default(1)
+  unitPrice       Float?
+  lineTotal       Float
+  createdAt       DateTime       @default(now())
+
+  returns         BillReturn[]
+
+  @@index([billId])
+  @@index([inventoryItemId])
+}
+
+// Partial or full returns against a specific line item (not the bill as a
+// whole) — a "full bill return" is just returning every one of its line
+// items. `quantityReturned` and `amountReturned` are validated against the
+// line item's remaining not-yet-returned quantity/amount in
+// `lib/queries/bills.ts`, not at the DB level. Restoring inventory stock
+// (if the line item has one) and clawing back loyalty points earned from
+// this line's share of the original sale both happen atomically alongside
+// creating this row.
+model BillReturn {
+  id               String       @id @default(cuid())
+  lineItem         BillLineItem @relation(fields: [lineItemId], references: [id], onDelete: Cascade)
+  lineItemId       String
+  quantityReturned Int
+  amountReturned   Float
+  reason           String?
+  createdAt        DateTime     @default(now())
+  createdBy        User?        @relation(fields: [createdById], references: [id])
+  createdById      String?
+
+  @@index([lineItemId])
+}
+
+// Who-did-what audit trail (OWNER-only visibility) for Customer/Bill
+// mutations. Deliberately its own table rather than createdBy/updatedBy
+// columns bolted onto Customer/Bill — keeps every action (create, each
+// edit, delete) as its own timestamped row instead of only ever knowing
+// the *last* actor. `userEmail` is a denormalized snapshot of the acting
+// user at the time of the action, so a log entry stays meaningful even if
+// that User account is later deleted (`userId` alone would go null).
+model ActivityLog {
+  id         String   @id @default(cuid())
+  user       User?    @relation(fields: [userId], references: [id])
+  userId     String?
+  userEmail  String?
+  action     String
+  entityType String
+  entityId   String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }

@@ -54,3 +54,12 @@ export const quickAddCustomerSchema = z.object({
 });
 
 export type QuickAddCustomerInput = z.infer<typeof quickAddCustomerSchema>;
+
+/** Delta-based loyalty-point adjustment (Stage 21) — positive to add
+ * points, negative to subtract. Mirrors `lib/validations/inventory.ts`'s
+ * `stockAdjustSchema`. */
+export const loyaltyAdjustSchema = z.object({
+  delta: z.number().int(),
+});
+
+export type LoyaltyAdjustInput = z.infer<typeof loyaltyAdjustSchema>;

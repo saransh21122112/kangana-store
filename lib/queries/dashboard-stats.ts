@@ -122,15 +122,18 @@ export interface CategorySales {
   total: number;
 }
 
-/** Sales summed by `Bill.category`, descending by total, for a donut chart. */
+/** Sales summed by `BillLineItem.category`, descending by total, for a
+ * donut chart. Grouped by line item (not `Bill.category`, which no longer
+ * represents a whole bill's category now that bills hold multiple line
+ * items) so this reflects real per-item categories. */
 export async function getSalesByCategory(): Promise<CategorySales[]> {
-  const grouped = await prisma.bill.groupBy({
+  const grouped = await prisma.billLineItem.groupBy({
     by: ["category"],
-    _sum: { amount: true },
+    _sum: { lineTotal: true },
   });
 
   return grouped
-    .map((g) => ({ category: g.category, total: g._sum.amount ?? 0 }))
+    .map((g) => ({ category: g.category, total: g._sum.lineTotal ?? 0 }))
     .sort((a, b) => b.total - a.total);
 }
 

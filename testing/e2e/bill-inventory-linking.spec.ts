@@ -9,6 +9,10 @@ import { loginAs } from "./support/auth"
  * is safe — see testing/e2e/README.md rule #1's exception for self-created
  * rows. The bill created against them is likewise throwaway and deleted at
  * the end of every test.
+ *
+ * Bill creation now takes a `lineItems` "shopping cart" array (Stage 21)
+ * rather than a flat category/amount/inventoryItemId/quantitySold shape —
+ * every request body below reflects that.
  */
 
 function uniqueMobile(): string {
@@ -57,14 +61,13 @@ test.describe("Bill ↔ Inventory linking", () => {
         data: {
           billNo: `E2E-NOLINK-${Date.now()}`,
           date: new Date().toISOString().slice(0, 10),
-          amount: 500,
-          category: "Beauty Services",
           customerId: customer.id,
+          lineItems: [{ category: "Beauty Services", quantity: 1, lineTotal: 500 }],
         },
       })
       expect(res.status()).toBe(201)
       const body = await res.json()
-      expect(body.bill.inventoryItemId).toBeFalsy()
+      expect(body.bill.lineItems[0].inventoryItemId).toBeFalsy()
       billId = body.bill.id
     } finally {
       if (billId) await page.request.delete(`/api/bills/${billId}`)
@@ -84,22 +87,51 @@ test.describe("Bill ↔ Inventory linking", () => {
         data: {
           billNo: `E2E-LINK-${Date.now()}`,
           date: new Date().toISOString().slice(0, 10),
-          amount: 5000,
-          category: "Jewellery - Gold",
           customerId: customer.id,
-          inventoryItemId: item.id,
-          quantitySold: 3,
+          lineItems: [
+            { category: "Jewellery - Gold", inventoryItemId: item.id, quantity: 3, unitPrice: 500 },
+          ],
         },
       })
       expect(res.status()).toBe(201)
       const body = await res.json()
-      expect(body.bill.inventoryItemId).toBe(item.id)
-      expect(body.bill.quantitySold).toBe(3)
+      expect(body.bill.lineItems[0].inventoryItemId).toBe(item.id)
+      expect(body.bill.lineItems[0].quantity).toBe(3)
       billId = body.bill.id
 
       expect(await getItemQuantity(page, item.id)).toBe(7)
     } finally {
       if (billId) await page.request.delete(`/api/bills/${billId}`)
+      await page.request.delete(`/api/inventory/${item.id}`)
+      await page.request.delete(`/api/customers/${customer.id}`)
+    }
+  })
+
+  test("two line items referencing the same item on one bill are aggregated before the stock check", async ({
+    page,
+  }) => {
+    const customer = await createTestCustomer(page)
+    const item = await createTestItem(page, 5)
+
+    try {
+      // 3 + 4 = 7 > 5 in stock — must be rejected as a combined request,
+      // not wrongly allowed by checking "3 <= 5" and "4 <= 5" independently.
+      const res = await page.request.post("/api/bills", {
+        data: {
+          billNo: `E2E-AGG-${Date.now()}`,
+          date: new Date().toISOString().slice(0, 10),
+          customerId: customer.id,
+          lineItems: [
+            { category: "Jewellery - Gold", inventoryItemId: item.id, quantity: 3, unitPrice: 500 },
+            { category: "Jewellery - Gold", inventoryItemId: item.id, quantity: 4, unitPrice: 500 },
+          ],
+        },
+      })
+      expect(res.status()).toBe(409)
+      const body = await res.json()
+      expect(body.reason).toBe("insufficient_stock")
+      expect(await getItemQuantity(page, item.id)).toBe(5)
+    } finally {
       await page.request.delete(`/api/inventory/${item.id}`)
       await page.request.delete(`/api/customers/${customer.id}`)
     }
@@ -114,11 +146,10 @@ test.describe("Bill ↔ Inventory linking", () => {
         data: {
           billNo: `E2E-OVERSELL-${Date.now()}`,
           date: new Date().toISOString().slice(0, 10),
-          amount: 5000,
-          category: "Jewellery - Gold",
           customerId: customer.id,
-          inventoryItemId: item.id,
-          quantitySold: 5,
+          lineItems: [
+            { category: "Jewellery - Gold", inventoryItemId: item.id, quantity: 5, unitPrice: 500 },
+          ],
         },
       })
       expect(res.status()).toBe(409)
@@ -135,9 +166,8 @@ test.describe("Bill ↔ Inventory linking", () => {
         data: {
           billNo: `E2E-OVERSELL-${Date.now()}`,
           date: new Date().toISOString().slice(0, 10),
-          amount: 100,
-          category: "Other",
           customerId: customer.id,
+          lineItems: [{ category: "Other", quantity: 1, lineTotal: 100 }],
         },
       })
       expect(retryRes.status()).toBe(201)
@@ -158,11 +188,10 @@ test.describe("Bill ↔ Inventory linking", () => {
         data: {
           billNo: `E2E-RESTORE-${Date.now()}`,
           date: new Date().toISOString().slice(0, 10),
-          amount: 5000,
-          category: "Jewellery - Gold",
           customerId: customer.id,
-          inventoryItemId: item.id,
-          quantitySold: 4,
+          lineItems: [
+            { category: "Jewellery - Gold", inventoryItemId: item.id, quantity: 4, unitPrice: 1250 },
+          ],
         },
       })
       expect(createRes.status()).toBe(201)
@@ -189,11 +218,15 @@ test.describe("Bill ↔ Inventory linking", () => {
         data: {
           billNo: `E2E-NOITEM-${Date.now()}`,
           date: new Date().toISOString().slice(0, 10),
-          amount: 100,
-          category: "Jewellery - Gold",
           customerId: customer.id,
-          inventoryItemId: "nonexistent-inventory-item-id",
-          quantitySold: 1,
+          lineItems: [
+            {
+              category: "Jewellery - Gold",
+              inventoryItemId: "nonexistent-inventory-item-id",
+              quantity: 1,
+              unitPrice: 100,
+            },
+          ],
         },
       })
       expect(res.status()).toBe(404)

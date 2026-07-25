@@ -10,6 +10,7 @@ import { BillFilterBar } from "@/components/bills/BillFilterBar"
 import { AddBillGlobalSheet } from "@/components/bills/AddBillGlobalSheet"
 import { DeleteBillButton } from "@/components/bills/DeleteBillButton"
 import { DownloadBillButton } from "@/components/bills/DownloadBillButton"
+import { RecordReturnSheet } from "@/components/bills/RecordReturnSheet"
 import { ICON_PROPS } from "@/lib/icon-map"
 
 function formatCurrency(amount: number): string {
@@ -20,6 +21,19 @@ function formatCurrency(amount: number): string {
 
 function formatDate(date: Date): string {
   return date.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+}
+
+/**
+ * Compact summary of a bill's line items for the global bills table's
+ * "Category" column — same "first distinct category + N more" convention
+ * as `BillHistoryTable`'s per-customer list, for a consistent feel across
+ * both bill listings.
+ */
+function summarizeLineItems(lineItems: Array<{ category: string }>): string {
+  if (lineItems.length === 0) return "No items"
+  const distinctCategories = Array.from(new Set(lineItems.map((li) => li.category)))
+  const [first, ...rest] = distinctCategories
+  return rest.length > 0 ? `${first} +${rest.length} more` : first
 }
 
 interface BillsPageProps {
@@ -118,13 +132,16 @@ export default async function BillsPage({ searchParams }: BillsPageProps) {
                     </Link>
                     <div className="text-xs text-muted-foreground">{bill.customer.mobileNumber}</div>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{bill.category}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{summarizeLineItems(bill.lineItems)}</td>
                   <td className="px-4 py-3 text-right font-semibold text-foreground">
                     {formatCurrency(bill.amount)}
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
                       <DownloadBillButton billId={bill.id} />
+                      {!isViewer && (
+                        <RecordReturnSheet billId={bill.id} billNo={bill.billNo} lineItems={bill.lineItems} />
+                      )}
                       {isOwner && <DeleteBillButton billId={bill.id} />}
                     </div>
                   </td>

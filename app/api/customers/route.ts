@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/requireRole";
 import { customerSchema } from "@/lib/validations/customer";
 import { createCustomer, getAllCustomers } from "@/lib/queries/customers";
+import { logActivity } from "@/lib/queries/activity-log";
 
 export async function GET(req: Request) {
   const guard = await requireRole(["OWNER", "STAFF", "VIEWER"]);
@@ -41,6 +42,15 @@ export async function POST(req: Request) {
       { status: 409 }
     );
   }
+
+  await logActivity({
+    userId: guard.session.user.id,
+    userEmail: guard.session.user.email,
+    action: "customer.create",
+    entityType: "Customer",
+    entityId: result.customer.id,
+    summary: `Created customer ${result.customer.name} (${result.customer.mobileNumber})`,
+  });
 
   return NextResponse.json({ customer: result.customer }, { status: 201 });
 }

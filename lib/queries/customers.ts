@@ -122,7 +122,10 @@ export async function getCustomerById(id: string) {
   return prisma.customer.findUnique({
     where: { id },
     include: {
-      bills: { orderBy: { date: "desc" } },
+      bills: {
+        orderBy: { date: "desc" },
+        include: { lineItems: { include: { returns: true } } },
+      },
       messagesLog: { orderBy: { createdAt: "desc" } },
     },
   });
@@ -224,4 +227,36 @@ export async function deleteCustomer(id: string): Promise<void> {
     },
     { maxWait: 10_000, timeout: 15_000 }
   );
+}
+
+export type AdjustLoyaltyPointsResult =
+  | { ok: true; customer: Customer }
+  | { ok: false; reason: "not_found" };
+
+/**
+ * Manual loyalty-point adjustment (Stage 21) — mirrors
+ * `lib/queries/inventory.ts`'s `adjustStock`: a delta (positive to add,
+ * negative to subtract), clamped server-side so points can never go
+ * negative regardless of what delta is sent. This is separate from the
+ * automatic earn-on-sale logic in `createBillWithRollup`/`deleteBill`
+ * (`lib/queries/bills.ts`) — this function exists for real-world redemption
+ * (a customer redeems points for a discount, an owner corrects a mistake,
+ * etc.), which stays a manual decision rather than something the software
+ * enforces a specific mechanism for.
+ */
+export async function adjustLoyaltyPoints(
+  id: string,
+  delta: number
+): Promise<AdjustLoyaltyPointsResult> {
+  const current = await prisma.customer.findUnique({ where: { id } });
+  if (!current) {
+    return { ok: false, reason: "not_found" };
+  }
+
+  const customer = await prisma.customer.update({
+    where: { id },
+    data: { loyaltyPoints: Math.max(0, current.loyaltyPoints + delta) },
+  });
+
+  return { ok: true, customer };
 }

@@ -34,93 +34,111 @@ const requiredDateSchema = z
   });
 
 /**
- * Amount as a required positive number. Accepts a string (as produced by a
- * plain `<input type="number">` via `register`) or a number, and transforms
- * to `number` — mirrors `requiredDateSchema`'s string-or-native-type
- * pattern so the form's `z.input` type stays a plain `string`, not
- * `unknown` (which `z.coerce.number()`'s input type would otherwise be).
+ * Quantity as a required positive integer, defaulting to 1. Accepts a
+ * string (as produced by a plain `<input type="number">` via `register`) or
+ * a number, mirroring the string-or-number transform pattern already used
+ * elsewhere in this file.
  */
-const amountSchema = z
-  .union([z.string(), z.number()])
-  .transform((val, ctx) => {
-    const num = typeof val === "string" ? Number(val) : val;
-    if (Number.isNaN(num) || num <= 0) {
-      ctx.addIssue({ code: "custom", message: "Amount must be greater than 0" });
-      return z.NEVER;
-    }
-    return num;
-  });
-
-/**
- * Quantity sold as an optional positive integer. Accepts a string (as
- * produced by a plain `<input type="number">` via `register`) or a number,
- * mirroring `amountSchema`'s string-or-number transform pattern — but
- * optional, since most bills don't link an inventory item at all.
- */
-const quantitySoldSchema = z
+const quantitySchema = z
   .union([z.string(), z.number()])
   .optional()
   .transform((val, ctx) => {
-    if (val === undefined || val === "") return undefined;
+    if (val === undefined || val === "") return 1;
     const num = typeof val === "string" ? Number(val) : val;
     if (Number.isNaN(num) || !Number.isInteger(num) || num <= 0) {
-      ctx.addIssue({ code: "custom", message: "Quantity sold must be a positive whole number" });
+      ctx.addIssue({ code: "custom", message: "Quantity must be a positive whole number" });
       return z.NEVER;
     }
     return num;
   });
 
 /**
- * Base object shape shared by `billSchema` and `billUpdateSchema` — kept as
- * a plain `z.object` (not wrapped in `.superRefine()` yet) so `.partial()`
- * remains available for the update variant, matching the pre-existing
- * `billUpdateSchema = billSchema.partial()` pattern.
+ * Optional positive-number field shared by `unitPrice`/`lineTotal` — accepts
+ * a string or number, mirroring the string-or-number transform pattern
+ * already used elsewhere in this file.
  */
-const billObjectSchema = z.object({
-  billNo: z.string().min(1, "Bill number is required"),
-  date: requiredDateSchema,
-  amount: amountSchema,
-  category: z.string().min(1, "Category is required"),
-  customerId: z.string().min(1, "Customer is required"),
-  /** Optional link to a stocked InventoryItem — most bills won't set this
-   * (e.g. "Beauty Services" has no stocked items). When set, `quantitySold`
-   * must also be set, and vice versa (both-or-neither). */
-  inventoryItemId: z.string().optional(),
-  quantitySold: quantitySoldSchema,
-});
-
-/** Shared both-or-neither check for `inventoryItemId`/`quantitySold`. */
-function refineInventoryLink(
-  data: { inventoryItemId?: string; quantitySold?: number },
-  ctx: z.RefinementCtx
-) {
-  const hasItem = data.inventoryItemId !== undefined && data.inventoryItemId !== "";
-  const hasQuantity = data.quantitySold !== undefined;
-  if (hasItem && !hasQuantity) {
-    ctx.addIssue({
-      code: "custom",
-      message: "Quantity sold is required when linking an inventory item",
-      path: ["quantitySold"],
+function optionalPositiveNumberSchema(message: string) {
+  return z
+    .union([z.string(), z.number()])
+    .optional()
+    .transform((val, ctx) => {
+      if (val === undefined || val === "") return undefined;
+      const num = typeof val === "string" ? Number(val) : val;
+      if (Number.isNaN(num) || num <= 0) {
+        ctx.addIssue({ code: "custom", message });
+        return z.NEVER;
+      }
+      return num;
     });
-  }
-  if (hasQuantity && !hasItem) {
-    ctx.addIssue({
-      code: "custom",
-      message: "An inventory item must be selected when quantity sold is set",
-      path: ["inventoryItemId"],
-    });
-  }
 }
 
-/** Full schema for creating/updating a bill. */
-export const billSchema = billObjectSchema.superRefine(refineInventoryLink);
+const unitPriceSchema = optionalPositiveNumberSchema("Unit price must be greater than 0");
+const lineTotalSchema = optionalPositiveNumberSchema("Line total must be greater than 0");
+
+/**
+ * A single purchased line item on a bill's "shopping cart". Exactly one of
+ * `unitPrice`/`lineTotal` must be provided — the staff member's choice of
+ * entering a per-item cost (which gets multiplied out) or a total cost for
+ * the line directly. After parsing, `lineTotal` is guaranteed to be a
+ * concrete number (computed from `unitPrice * quantity`, rounded to 2
+ * decimals, when only `unitPrice` was given) so every downstream consumer
+ * can just read `lineItem.lineTotal` without re-deriving it.
+ */
+const lineItemInputSchema = z
+  .object({
+    category: z.string().min(1, "Category is required"),
+    inventoryItemId: z.string().optional(),
+    quantity: quantitySchema,
+    unitPrice: unitPriceSchema,
+    lineTotal: lineTotalSchema,
+  })
+  .superRefine((data, ctx) => {
+    const hasUnitPrice = data.unitPrice !== undefined;
+    const hasLineTotal = data.lineTotal !== undefined;
+    if (hasUnitPrice === hasLineTotal) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Provide exactly one of unit price or line total",
+        path: ["lineTotal"],
+      });
+    }
+  })
+  .transform((data) => {
+    const lineTotal =
+      data.lineTotal !== undefined
+        ? data.lineTotal
+        : Math.round((data.unitPrice ?? 0) * data.quantity * 100) / 100;
+    return { ...data, lineTotal };
+  });
+
+export type LineItemInput = z.infer<typeof lineItemInputSchema>;
+
+/** Full schema for creating a bill — a `lineItems` "shopping cart" replaces
+ * the old flat single category/amount/inventoryItemId/quantitySold shape.
+ * `amount` is no longer supplied by the client at all; it's always derived
+ * server-side as the sum of the line items' `lineTotal`s. */
+export const billSchema = z.object({
+  billNo: z.string().min(1, "Bill number is required"),
+  date: requiredDateSchema,
+  customerId: z.string().min(1, "Customer is required"),
+  lineItems: z.array(lineItemInputSchema).min(1, "At least one item is required"),
+});
 
 export type BillInput = z.infer<typeof billSchema>;
 
-/** Partial variant for PATCH/update — every field optional, but any field
- * present is still validated against the same rules. Built from the same
- * both-or-neither refinement as `billSchema` (not just `.partial()` alone),
- * so a PATCH that sets only one of the pair is still rejected. */
-export const billUpdateSchema = billObjectSchema.partial().superRefine(refineInventoryLink);
+/**
+ * Partial variant for PATCH/update. Deliberately its OWN object (not
+ * `billSchema.partial()`) — editing a bill's line items after creation is
+ * explicitly out of scope (same prior decision that `updateBill` doesn't
+ * touch the inventory link after creation), so `lineItems` must not appear
+ * here at all, not even as an optional field.
+ */
+export const billUpdateSchema = z
+  .object({
+    billNo: z.string().min(1, "Bill number is required"),
+    date: requiredDateSchema,
+    customerId: z.string().min(1, "Customer is required"),
+  })
+  .partial();
 
 export type BillUpdateInput = z.infer<typeof billUpdateSchema>;

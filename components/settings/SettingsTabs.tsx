@@ -10,6 +10,7 @@ import { StoreProfileForm } from "@/components/settings/StoreProfileForm"
 import { CategoryManager } from "@/components/settings/CategoryManager"
 import { ThresholdsForm } from "@/components/settings/ThresholdsForm"
 import { UserManagementTable, type UserRow } from "@/components/settings/UserManagementTable"
+import { ActivityLogTable, type ActivityLogRow } from "@/components/settings/ActivityLogTable"
 import { ICON_PROPS } from "@/lib/icon-map"
 
 export interface SettingsTabsProps {
@@ -27,6 +28,8 @@ export interface SettingsTabsProps {
   }
   /** Only populated (by the server component) when the viewer is OWNER. */
   initialUsers: UserRow[]
+  /** Only populated (by the server component) when the viewer is OWNER. */
+  initialActivity: ActivityLogRow[]
 }
 
 const BASE_OPTIONS: SegmentedControlOption[] = [
@@ -34,6 +37,7 @@ const BASE_OPTIONS: SegmentedControlOption[] = [
   { value: "categories", label: "Categories" },
   { value: "thresholds", label: "Thresholds" },
   { value: "users", label: "Users" },
+  { value: "activity", label: "Activity" },
   { value: "export", label: "Export" },
 ]
 
@@ -51,8 +55,11 @@ export function SettingsTabs({
   categories,
   thresholdsDefaults,
   initialUsers,
+  initialActivity,
 }: SettingsTabsProps) {
-  const options = isOwner ? BASE_OPTIONS : BASE_OPTIONS.filter((opt) => opt.value !== "users")
+  const options = isOwner
+    ? BASE_OPTIONS
+    : BASE_OPTIONS.filter((opt) => opt.value !== "users" && opt.value !== "activity")
   const [tab, setTab] = React.useState<string>(options[0].value)
 
   return (
@@ -76,6 +83,8 @@ export function SettingsTabs({
               description="Only the store owner can view and manage team member accounts."
             />
           ))}
+
+        {tab === "activity" && isOwner && <ActivityLogTable entries={initialActivity} />}
 
         {tab === "export" && (
           <div className="flex flex-col gap-4 max-w-md">

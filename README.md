@@ -131,6 +131,10 @@ erDiagram
     Customer ||--o{ Bill : "has"
     Customer ||--o{ MessageLog : "receives"
     MessageTemplate ||--o{ MessageLog : "renders into"
+    Bill ||--o{ BillLineItem : "line items"
+    BillLineItem ||--o{ BillReturn : "returns"
+    InventoryItem ||--o{ BillLineItem : "sold as"
+    User ||--o{ ActivityLog : "acted"
 
     Customer {
         string id PK
@@ -143,14 +147,38 @@ erDiagram
         float averageBillValue
         datetime lastVisitDate
         string favouriteCategory
+        int loyaltyPoints
     }
     Bill {
         string id PK
         string billNo UK
         datetime date
         float amount
-        string category
         string customerId FK
+    }
+    BillLineItem {
+        string id PK
+        string billId FK
+        string category
+        string inventoryItemId FK
+        int quantity
+        float unitPrice
+        float lineTotal
+    }
+    BillReturn {
+        string id PK
+        string lineItemId FK
+        int quantityReturned
+        float amountReturned
+        string reason
+        string createdById FK
+    }
+    InventoryItem {
+        string id PK
+        string name
+        string category
+        int quantity
+        int lowStockThreshold
     }
     MessageTemplate {
         string id PK
@@ -175,13 +203,29 @@ erDiagram
         string storeName
         string[] categories
         int inactiveThreshold30
+        float loyaltyPointsPerRupee
+    }
+    ActivityLog {
+        string id PK
+        string userId FK
+        string userEmail
+        string action
+        string entityType
+        string entityId
+        string summary
     }
 ```
 
-Every `Bill` create/update/delete runs inside a Prisma transaction that recomputes the owning
-`Customer`'s rollup fields (`totalPurchaseAmount`, `totalVisits`, `averageBillValue`,
-`lastVisitDate`, `favouriteCategory`) from scratch — never incrementally — so they stay correct
-regardless of edit/delete order.
+`Bill` is a header row over a `BillLineItem[]` "shopping cart" — each line item carries its own
+category, optional link to a tracked `InventoryItem`, quantity, and price (unit price × quantity,
+or a flat line total). Every `Bill` create/update/delete runs inside a Prisma transaction that
+recomputes the owning `Customer`'s rollup fields (`totalPurchaseAmount`, `totalVisits`,
+`averageBillValue`, `lastVisitDate`, `favouriteCategory`) from scratch — never incrementally — so
+they stay correct regardless of edit/delete/return order; `BillReturn` rows net out of
+`totalPurchaseAmount`/`favouriteCategory` but don't touch `Bill.amount` itself, which stays the
+original sale total. Loyalty points are earned automatically on sale (`AppSettings.loyaltyPointsPerRupee`)
+and clawed back on delete/return, plus support manual adjustment. `ActivityLog` is an OWNER-only
+audit trail of customer/bill create/update/delete actions.
 
 ## Getting Started
 

@@ -12,16 +12,34 @@ import { EmptyState } from "@/components/apple/EmptyState"
 import { AddBillForm } from "@/components/bills/AddBillForm"
 import { DeleteBillButton } from "@/components/bills/DeleteBillButton"
 import { DownloadBillButton } from "@/components/bills/DownloadBillButton"
+import { RecordReturnSheet } from "@/components/bills/RecordReturnSheet"
 import { getCategoryIcon, ICON_PROPS } from "@/lib/icon-map"
-import type { Bill } from "@/lib/generated/prisma/client"
+import type { Bill, BillLineItem, BillReturn } from "@/lib/generated/prisma/client"
+
+type LineItemWithReturns = BillLineItem & { returns: BillReturn[] }
 
 export interface BillHistoryTableProps {
   customerId: string
-  bills: Bill[]
-  /** VIEWER never sees the "+ Add Bill" trigger (read-only). */
+  bills: Array<Bill & { lineItems: LineItemWithReturns[] }>
+  /** VIEWER never sees the "+ Add Bill" trigger or the "Return" action (read-only). */
   isViewer?: boolean
   /** Only OWNER sees the per-row delete action. */
   isOwner?: boolean
+}
+
+/**
+ * Compact summary of a bill's line items for a per-customer history row —
+ * e.g. "Skincare" (single item), "Skincare +2 more" (multiple distinct
+ * categories), or "3 items" as a fallback when there are no line items to
+ * read a category from (shouldn't happen post-rollout, but keeps this
+ * defensive). Judgment call: first-category + "+N more" reads more
+ * informatively than a bare item count in a per-customer list like this.
+ */
+function summarizeLineItems(lineItems: LineItemWithReturns[]): string {
+  if (lineItems.length === 0) return "No items"
+  const distinctCategories = Array.from(new Set(lineItems.map((li) => li.category)))
+  const [first, ...rest] = distinctCategories
+  return rest.length > 0 ? `${first} +${rest.length} more` : first
 }
 
 function formatDate(date: Date | string): string {
@@ -76,7 +94,7 @@ export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillH
         ) : (
           <ul className="divide-y divide-border">
             {sortedBills.map((bill) => {
-              const Icon = getCategoryIcon(bill.category)
+              const Icon = getCategoryIcon(bill.lineItems[0]?.category)
               return (
                 <li key={bill.id} className="flex items-center justify-between gap-4 px-5 py-3.5">
                   <div className="flex items-center gap-3">
@@ -86,7 +104,7 @@ export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillH
                     <div className="flex flex-col">
                       <span className="text-sm font-medium text-foreground">{bill.billNo}</span>
                       <span className="text-xs text-muted-foreground">
-                        {formatDate(bill.date)} &middot; {bill.category}
+                        {formatDate(bill.date)} &middot; {summarizeLineItems(bill.lineItems)}
                       </span>
                     </div>
                   </div>
@@ -95,6 +113,9 @@ export function BillHistoryTable({ customerId, bills, isViewer, isOwner }: BillH
                       {formatCurrency(bill.amount)}
                     </span>
                     <DownloadBillButton billId={bill.id} />
+                    {!isViewer && (
+                      <RecordReturnSheet billId={bill.id} billNo={bill.billNo} lineItems={bill.lineItems} />
+                    )}
                     {isOwner && <DeleteBillButton billId={bill.id} />}
                   </div>
                 </li>

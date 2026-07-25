@@ -1,10 +1,10 @@
 import path from "node:path"
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer"
 
-import type { Bill, Customer } from "@/lib/generated/prisma/client"
+import type { Bill, BillLineItem, Customer } from "@/lib/generated/prisma/client"
 
 export interface BillInvoiceProps {
-  bill: Bill & { customer: Customer }
+  bill: Bill & { customer: Customer; lineItems: BillLineItem[] }
   storeName: string
 }
 
@@ -189,10 +189,15 @@ export function BillInvoiceDocument({ bill, storeName }: BillInvoiceProps) {
             <Text style={[styles.tableHeaderText, styles.colCategory]}>Category</Text>
             <Text style={[styles.tableHeaderText, styles.colAmount]}>Amount</Text>
           </View>
-          <View style={styles.tableRow}>
-            <Text style={styles.colCategory}>{bill.category}</Text>
-            <Text style={styles.colAmount}>{formatCurrency(bill.amount)}</Text>
-          </View>
+          {bill.lineItems.map((lineItem) => (
+            <View key={lineItem.id} style={styles.tableRow}>
+              <Text style={styles.colCategory}>
+                {lineItem.category}
+                {lineItem.quantity > 1 ? ` (×${lineItem.quantity})` : ""}
+              </Text>
+              <Text style={styles.colAmount}>{formatCurrency(lineItem.lineTotal)}</Text>
+            </View>
+          ))}
         </View>
 
         <View style={styles.totalRow}>
