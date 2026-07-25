@@ -278,6 +278,31 @@
     transform: translateY(-3px);
   }
 
+  /* Form controls (shadcn Input/Textarea/SelectTrigger) default to a
+   * semi-transparent background (`dark:bg-input/30`) — invisible-looking
+   * before this glass treatment because it always sat on an opaque solid
+   * card, so the transparency never showed. Inside a blurred, translucent
+   * `.glow-card` there's no solid backdrop left to distinguish "input box"
+   * from "card surface" against, and the low-contrast border all but
+   * disappears — a real usability regression caught by testing the Settings
+   * forms after rolling this treatment out, not just the read-only/stat
+   * cards it was designed against. Give form controls inside a glow-card an
+   * explicit, more opaque backing so they stay clearly boxed regardless of
+   * what's blurred behind them.
+   */
+  .glow-card [data-slot="input"],
+  .glow-card [data-slot="textarea"],
+  .glow-card [data-slot="select-trigger"] {
+    background-color: color-mix(in srgb, var(--background) 70%, transparent);
+    border-color: var(--border);
+  }
+  .dark .glow-card [data-slot="input"],
+  .dark .glow-card [data-slot="textarea"],
+  .dark .glow-card [data-slot="select-trigger"] {
+    background-color: color-mix(in srgb, var(--background) 65%, transparent);
+    border-color: color-mix(in srgb, var(--foreground) 20%, var(--border));
+  }
+
   /* Diagonal light sheen that sweeps across a glow-card on hover — a classic
      "futuristic glass panel" cue. A pseudo-element clipped to the card's own
      border-radius, translated fully across on hover via `transition`

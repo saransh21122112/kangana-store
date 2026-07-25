@@ -232,7 +232,7 @@ export function UserManagementTable({ initialUsers }: UserManagementTableProps) 
         </AppleButton>
       </div>
 
-      <AppleCard noPadding className="overflow-hidden">
+      <AppleCard glow noPadding className="overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>

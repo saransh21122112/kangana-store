@@ -66,7 +66,7 @@ export function SendQueueList({ customerIds, templateId, onDone }: SendQueueList
 
   if (state.status === "idle" || state.status === "loading") {
     return (
-      <AppleCard className="flex items-center justify-center py-10 text-sm text-muted-foreground">
+      <AppleCard glow className="flex items-center justify-center py-10 text-sm text-muted-foreground">
         Preparing send queue…
       </AppleCard>
     )
@@ -74,7 +74,7 @@ export function SendQueueList({ customerIds, templateId, onDone }: SendQueueList
 
   if (state.status === "error") {
     return (
-      <AppleCard className="flex flex-col items-center gap-2 py-10 text-center">
+      <AppleCard glow className="flex flex-col items-center gap-2 py-10 text-center">
         <p className="text-sm text-danger">{state.message}</p>
       </AppleCard>
     )
@@ -101,14 +101,14 @@ export function SendQueueList({ customerIds, templateId, onDone }: SendQueueList
 
   if (total === 0) {
     return (
-      <AppleCard className="flex flex-col items-center gap-2 py-10 text-center">
+      <AppleCard glow className="flex flex-col items-center gap-2 py-10 text-center">
         <p className="text-sm text-muted-foreground">No recipients to send to.</p>
       </AppleCard>
     )
   }
 
   return (
-    <AppleCard className="flex flex-col items-center gap-4 py-8 text-center">
+    <AppleCard glow className="flex flex-col items-center gap-4 py-8 text-center">
       <div className="flex size-14 items-center justify-center rounded-full bg-accent/10 text-accent">
         {done ? <CheckCircle2 {...ICON_PROPS} size={28} /> : <MessageCircle {...ICON_PROPS} size={28} />}
       </div>

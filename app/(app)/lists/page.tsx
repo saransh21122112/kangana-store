@@ -8,6 +8,7 @@ import {
   getNewCustomersThisMonth,
 } from "@/lib/queries/customer-lists"
 import { AppleCard } from "@/components/apple/AppleCard"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { ListsSegmentedNav } from "@/components/lists/ListsSegmentedNav"
 import { CustomerListTable, type CustomerListRow } from "@/components/lists/CustomerListTable"
 
@@ -118,7 +119,9 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">Lists</h1>
         <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
@@ -127,7 +130,7 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
         </p>
       </div>
 
-      <AppleCard noPadding className="flex flex-col gap-4 p-4">
+      <AppleCard glow noPadding className="flex flex-col gap-4 p-4">
         <ListsSegmentedNav paramName="view" options={[...VIEW_OPTIONS]} value={view} />
         {view === "inactive" && (
           <ListsSegmentedNav

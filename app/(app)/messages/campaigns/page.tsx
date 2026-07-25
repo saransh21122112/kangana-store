@@ -14,6 +14,7 @@ import {
 import { CampaignBuilder, type AudienceOption } from "@/components/messages/CampaignBuilder"
 import { WeMissYouPanel } from "@/components/messages/WeMissYouPanel"
 import { AppleButton } from "@/components/apple/AppleButton"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { ICON_PROPS } from "@/lib/icon-map"
 
 // See app/(app)/(dashboard)/page.tsx for why this is needed: without it,
@@ -89,7 +90,9 @@ export default async function CampaignsPage() {
   const weMissYouTemplate = activeTemplates.find((t) => t.type === "WE_MISS_YOU") ?? null
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="relative flex flex-col gap-6">
+      <AuroraBackground />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground">Campaigns</h1>

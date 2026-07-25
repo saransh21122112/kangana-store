@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import { AppleCard } from "@/components/apple/AppleCard"
+import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { CustomerForm } from "@/components/customers/CustomerForm"
 import type { CustomerInput } from "@/lib/validations/customer"
 
@@ -31,7 +32,9 @@ export default function NewCustomerPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
+    <div className="relative mx-auto flex w-full max-w-lg flex-col gap-6">
+      <AuroraBackground />
+
       <div>
         <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">New Customer</h1>
         <div className="gradient-hairline mt-2 h-0.5 w-14 rounded-full" />
@@ -40,7 +43,7 @@ export default function NewCustomerPage() {
         </p>
       </div>
 
-      <AppleCard>
+      <AppleCard glow>
         <CustomerForm onSubmit={handleCreate} submitLabel="Register Customer" />
       </AppleCard>
     </div>
