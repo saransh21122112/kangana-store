@@ -218,6 +218,18 @@
   .gradient-hairline {
     background-image: linear-gradient(90deg, var(--accent), var(--gold));
   }
+
+  /* Hides the scrollbar on an `overflow-x-auto` container while keeping it
+     touch/wheel scrollable — used by SegmentedControl's mobile-overflow
+     wrapper so a 5+-option tab row scrolls horizontally within its own
+     bounds instead of forcing the whole page to overflow sideways. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* --- Futuristic glass/glow preview layer (Login + Dashboard only) ---------

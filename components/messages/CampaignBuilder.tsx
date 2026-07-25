@@ -113,7 +113,6 @@ export function CampaignBuilder({ templates, audiences, allCustomers }: Campaign
           options={audienceOptions.map((a) => ({ value: a.key, label: a.label }))}
           value={audienceKey}
           onChange={setAudienceKey}
-          className="flex-wrap"
         />
       </div>
 
