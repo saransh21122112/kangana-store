@@ -219,3 +219,165 @@
     background-image: linear-gradient(90deg, var(--accent), var(--gold));
   }
 }
+
+/* --- Futuristic glass/glow preview layer (Login + Dashboard only) ---------
+   Opt-in only: nothing here changes the look of any surface that doesn't
+   explicitly use it (AppleCard's `glow` prop, AuroraBackground). Kept as a
+   layer on top of the existing warm rose/gold token system rather than a
+   competing theme, so the two direction are never mixed on the same
+   element and every other page in the app is untouched. Light mode is
+   deliberately restrained (soft glass, low-opacity aurora) so it stays
+   legible on a bright shop-counter screen, per the explicit "must stay
+   practically usable" requirement — dark mode is where the neon glow
+   actually shows up. */
+@layer utilities {
+  .glow-card {
+    position: relative;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    background-color: color-mix(in srgb, var(--card) 72%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 18%, var(--border));
+    box-shadow:
+      var(--shadow-card),
+      0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent) inset;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+  }
+  .glow-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+    box-shadow:
+      var(--shadow-card),
+      0 0 24px 0 color-mix(in srgb, var(--accent) 16%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent) inset;
+  }
+  .dark .glow-card {
+    background-color: color-mix(in srgb, var(--card) 48%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+    box-shadow:
+      0 4px 24px 0 rgb(0 0 0 / 0.4),
+      0 0 28px 0 color-mix(in srgb, var(--accent) 22%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--gold) 16%, transparent) inset;
+  }
+  .dark .glow-card:hover {
+    border-color: color-mix(in srgb, var(--accent) 70%, var(--border));
+    box-shadow:
+      0 8px 32px 0 rgb(0 0 0 / 0.5),
+      0 0 48px 0 color-mix(in srgb, var(--accent) 34%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--gold) 28%, transparent) inset;
+    transform: translateY(-3px);
+  }
+
+  /* Diagonal light sheen that sweeps across a glow-card on hover — a classic
+     "futuristic glass panel" cue. A pseudo-element clipped to the card's own
+     border-radius, translated fully across on hover via `transition`
+     (cheaper than a keyframe loop, and only runs when a user is actually
+     looking at that card). Dark mode only — on the restrained light theme
+     it read as a distracting glare rather than a glow. */
+  .dark .glow-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    pointer-events: none;
+    background: linear-gradient(
+      115deg,
+      transparent 40%,
+      color-mix(in srgb, var(--gold) 16%, transparent) 50%,
+      transparent 60%
+    );
+    background-size: 250% 250%;
+    background-position: -100% -100%;
+    transition: background-position 0.8s ease;
+  }
+  .dark .glow-card:hover::after {
+    background-position: 0% 0%;
+  }
+
+  /* Gradient text for the futuristic StatTile numbers / login heading. */
+  .glow-text {
+    background-image: linear-gradient(120deg, var(--accent), var(--gold), var(--accent));
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .dark .glow-text {
+    animation: glow-text-shift 6s ease-in-out infinite;
+  }
+
+  /* Slowly rotating conic-gradient ring, used behind the login card as a
+     thin animated glowing border. `prefers-reduced-motion` disables the
+     spin (the ring still renders, just static) rather than removing it
+     entirely. */
+  .glow-ring::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from var(--glow-ring-angle, 0deg),
+      color-mix(in srgb, var(--accent) 70%, transparent),
+      color-mix(in srgb, var(--gold) 70%, transparent),
+      transparent 30%,
+      color-mix(in srgb, var(--accent) 70%, transparent)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: 0.5;
+    animation: glow-ring-spin 8s linear infinite;
+    pointer-events: none;
+  }
+  .dark .glow-ring::before {
+    opacity: 0.85;
+  }
+}
+
+@property --glow-ring-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes glow-ring-spin {
+  to {
+    --glow-ring-angle: 360deg;
+  }
+}
+
+@keyframes glow-text-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes aurora-drift-1 {
+  0%, 100% { transform: translate(-10%, -10%) scale(1); }
+  50% { transform: translate(8%, 12%) scale(1.15); }
+}
+@keyframes aurora-drift-2 {
+  0%, 100% { transform: translate(10%, 5%) scale(1.1); }
+  50% { transform: translate(-12%, -8%) scale(1); }
+}
+@keyframes aurora-drift-3 {
+  0%, 100% { transform: translate(0%, 10%) scale(1); }
+  50% { transform: translate(-8%, -14%) scale(1.2); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-ring::before {
+    animation: none;
+  }
+  .aurora-blob {
+    animation: none !important;
+  }
+  .dark .glow-text {
+    animation: none;
+  }
+}

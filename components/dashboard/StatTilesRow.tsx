@@ -92,14 +92,15 @@ export function StatTilesRow({
   return (
     <StaggerList className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <StaggerItem>
-        <AppleCard className="relative flex flex-col gap-3 overflow-hidden">
+        <AppleCard glow className="relative flex flex-col gap-3 overflow-hidden">
           <div className="gradient-hairline absolute inset-x-0 top-0 h-[2px]" />
           <div className="flex items-start justify-between gap-4">
             <StatTile
               label="Total Sales"
               value={currencyFormatter.format(salesValue)}
+              valueClassName="glow-text"
             />
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent dark:shadow-[0_0_16px_0_var(--accent)]">
               <IndianRupee {...ICON_PROPS} size={22} />
             </div>
           </div>
@@ -117,7 +118,7 @@ export function StatTilesRow({
 
       {tiles.map((tile) => (
         <StaggerItem key={tile.key}>
-          <AppleCard className="flex items-start justify-between gap-4">
+          <AppleCard glow className="flex items-start justify-between gap-4">
             <StatTile label={tile.label} value={tile.value} />
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
               <tile.icon {...ICON_PROPS} size={22} />

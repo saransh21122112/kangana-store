@@ -32,7 +32,7 @@ export function LowStockCard({ items, limit = 5 }: LowStockCardProps) {
   const visible = items.slice(0, limit)
 
   return (
-    <AppleCard noPadding className="flex flex-col gap-2 p-4">
+    <AppleCard glow noPadding className="flex flex-col gap-2 p-4">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-danger/10 text-danger">
