@@ -1,10 +1,14 @@
 import path from "node:path"
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer"
 
-import type { Bill, BillLineItem, Customer } from "@/lib/generated/prisma/client"
+import type { Bill, BillLineItem, Customer, InventoryItem } from "@/lib/generated/prisma/client"
+import { lineItemDisplayLabel } from "@/lib/bill-line-item-label"
 
 export interface BillInvoiceProps {
-  bill: Bill & { customer: Customer; lineItems: BillLineItem[] }
+  bill: Bill & {
+    customer: Customer
+    lineItems: Array<BillLineItem & { inventoryItem: InventoryItem | null }>
+  }
   storeName: string
 }
 
@@ -192,7 +196,16 @@ export function BillInvoiceDocument({ bill, storeName }: BillInvoiceProps) {
           {bill.lineItems.map((lineItem) => (
             <View key={lineItem.id} style={styles.tableRow}>
               <Text style={styles.colCategory}>
-                {lineItem.category}
+                {lineItemDisplayLabel(lineItem)}
+                {/* Once a line item is linked to a real product, its name
+                    (e.g. "ELLE 18 BASE PRIMER 10ML") replaces `category` as
+                    the primary label above — the category is kept alongside
+                    in parens rather than dropped, since it's still useful
+                    context (the broad reporting bucket) on a printed
+                    invoice. Unlinked, category-only line items already show
+                    their category as the primary label, so repeating it
+                    here would be redundant. */}
+                {lineItem.inventoryItem ? ` (${lineItem.category})` : ""}
                 {lineItem.quantity > 1 ? ` (×${lineItem.quantity})` : ""}
               </Text>
               <Text style={styles.colAmount}>{formatCurrency(lineItem.lineTotal)}</Text>

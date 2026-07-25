@@ -124,7 +124,10 @@ export async function getCustomerById(id: string) {
     include: {
       bills: {
         orderBy: { date: "desc" },
-        include: { lineItems: { include: { returns: true } } },
+        // `inventoryItem` is joined so the per-customer bill history can
+        // prefer the linked product's real name over its broad category —
+        // see `lib/bill-line-item-label.ts`.
+        include: { lineItems: { include: { returns: true, inventoryItem: true } } },
       },
       messagesLog: { orderBy: { createdAt: "desc" } },
     },

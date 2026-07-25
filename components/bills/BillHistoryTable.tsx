@@ -14,9 +14,10 @@ import { DeleteBillButton } from "@/components/bills/DeleteBillButton"
 import { DownloadBillButton } from "@/components/bills/DownloadBillButton"
 import { RecordReturnSheet } from "@/components/bills/RecordReturnSheet"
 import { getCategoryIcon, ICON_PROPS } from "@/lib/icon-map"
-import type { Bill, BillLineItem, BillReturn } from "@/lib/generated/prisma/client"
+import { lineItemDisplayLabel } from "@/lib/bill-line-item-label"
+import type { Bill, BillLineItem, BillReturn, InventoryItem } from "@/lib/generated/prisma/client"
 
-type LineItemWithReturns = BillLineItem & { returns: BillReturn[] }
+type LineItemWithReturns = BillLineItem & { returns: BillReturn[]; inventoryItem: InventoryItem | null }
 
 export interface BillHistoryTableProps {
   customerId: string
@@ -37,11 +38,17 @@ export interface BillHistoryTableProps {
  * read a category from (shouldn't happen post-rollout, but keeps this
  * defensive). Judgment call: first-category + "+N more" reads more
  * informatively than a bare item count in a per-customer list like this.
+ *
+ * Dedupes on each line item's display label (linked product name if set,
+ * else category — see `lib/bill-line-item-label.ts`) rather than always on
+ * `category`, so two distinct linked products sharing one category (e.g.
+ * two different lipsticks, both "Makeup") show up as "+1 more" instead of
+ * silently collapsing into a single "Makeup" entry.
  */
 function summarizeLineItems(lineItems: LineItemWithReturns[]): string {
   if (lineItems.length === 0) return "No items"
-  const distinctCategories = Array.from(new Set(lineItems.map((li) => li.category)))
-  const [first, ...rest] = distinctCategories
+  const distinctLabels = Array.from(new Set(lineItems.map(lineItemDisplayLabel)))
+  const [first, ...rest] = distinctLabels
   return rest.length > 0 ? `${first} +${rest.length} more` : first
 }
 

@@ -61,3 +61,30 @@ export const stockAdjustSchema = z.object({
 });
 
 export type StockAdjustInput = z.infer<typeof stockAdjustSchema>;
+
+/**
+ * One row of the CSV bulk-price-import round-trip (see
+ * `app/api/inventory/import/route.ts`). Only `id` plus the three
+ * spreadsheet-editable fields are accepted — `name`/`category`/`brand`
+ * columns may be present in the uploaded file (the export includes them for
+ * the owner's reference while editing in Excel) but are deliberately not
+ * part of this schema, so the import can never overwrite them even if the
+ * sheet's other columns were hand-edited.
+ */
+export const inventoryImportRowSchema = z.object({
+  id: z.string().min(1, "Missing id"),
+  ratePerUnit: nonNegativeNumberSchema,
+  quantity: nonNegativeIntSchema,
+  lowStockThreshold: nonNegativeIntSchema,
+});
+
+export type InventoryImportRowInput = z.infer<typeof inventoryImportRowSchema>;
+
+/** Bulk recategorize from the Inventory table's multi-select bar — every
+ * selected id moves to the same new `category`. */
+export const bulkRecategorizeSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1, "Select at least one item"),
+  category: z.string().min(1, "Category is required"),
+});
+
+export type BulkRecategorizeInput = z.infer<typeof bulkRecategorizeSchema>;

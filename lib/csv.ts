@@ -34,3 +34,73 @@ export function toCsv(rows: Record<string, unknown>[], columns: CsvColumn[]): st
   const lines = rows.map((row) => columns.map((c) => escapeCell(row[c.key])).join(","));
   return [headerLine, ...lines].join("\r\n") + "\r\n";
 }
+
+/**
+ * Parses an RFC 4180 CSV string into an array of header-keyed row objects.
+ * Hand-rolled rather than pulling in a dependency (no CSV-parsing package
+ * is in `package.json`, and the app's only import need is this one
+ * inventory round-trip) — but still handles what a naive `line.split(",")`
+ * gets wrong: quoted fields containing commas, escaped `""` quotes inside a
+ * quoted field, and quoted fields containing embedded newlines (a product
+ * `name` could plausibly contain any of these). The first row is always
+ * treated as the header; its cells become the keys of every subsequent
+ * row's object. Blank trailing lines are skipped.
+ */
+export function parseCsv(input: string): Record<string, string>[] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+
+  const text = input.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+
+    if (inQuotes) {
+      if (char === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      row.push(cell);
+      cell = "";
+    } else if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+    } else {
+      cell += char;
+    }
+  }
+
+  // Flush the final cell/row if the input didn't end with a newline.
+  if (cell.length > 0 || row.length > 0) {
+    row.push(cell);
+    rows.push(row);
+  }
+
+  const nonEmptyRows = rows.filter((r) => !(r.length === 1 && r[0] === ""));
+  if (nonEmptyRows.length === 0) return [];
+
+  const [header, ...dataRows] = nonEmptyRows;
+  return dataRows.map((cells) => {
+    const record: Record<string, string> = {};
+    header.forEach((key, idx) => {
+      record[key] = cells[idx] ?? "";
+    });
+    return record;
+  });
+}

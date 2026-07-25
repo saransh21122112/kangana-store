@@ -1,17 +1,15 @@
 import { Box } from "lucide-react"
 
 import { auth } from "@/lib/auth"
-import { getAllInventoryItems } from "@/lib/queries/inventory"
+import { getAllInventoryItems, getDistinctBrands } from "@/lib/queries/inventory"
 import { getSettings } from "@/lib/queries/settings"
 import { AppleCard } from "@/components/apple/AppleCard"
-import { AppleBadge } from "@/components/apple/Badge"
 import { AuroraBackground } from "@/components/apple/AuroraBackground"
 import { EmptyState } from "@/components/apple/EmptyState"
 import { InventoryFilterBar } from "@/components/inventory/InventoryFilterBar"
 import { AddInventoryItemSheet } from "@/components/inventory/AddInventoryItemSheet"
-import { EditInventoryItemSheet } from "@/components/inventory/EditInventoryItemSheet"
-import { StockAdjustControls } from "@/components/inventory/StockAdjustControls"
-import { DeleteInventoryItemButton } from "@/components/inventory/DeleteInventoryItemButton"
+import { InventoryTable } from "@/components/inventory/InventoryTable"
+import { ImportInventoryButton } from "@/components/inventory/ImportInventoryButton"
 
 interface InventoryPageProps {
   // Same server-component-reads-searchParams / client-filter-bar-pushes-URL
@@ -37,6 +35,7 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
 
   const params = await searchParams
   const category = firstValue(params.category)
+  const brand = firstValue(params.brand)
   const search = firstValue(params.search)
   const lowStockOnly = firstValue(params.lowStockOnly) === "true"
 
@@ -45,9 +44,10 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
   // filters rather than building full pagination for a page that's mostly
   // used via search anyway (per the bulk-import task's brief).
   const LISTING_CAP = 200
-  const [items, settings] = await Promise.all([
-    getAllInventoryItems({ category, search, lowStockOnly, limit: LISTING_CAP }),
+  const [items, settings, brands] = await Promise.all([
+    getAllInventoryItems({ category, brand, search, lowStockOnly, limit: LISTING_CAP }),
     getSettings(),
+    getDistinctBrands(),
   ])
   const atCap = items.length === LISTING_CAP
 
@@ -67,7 +67,8 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <InventoryFilterBar categories={settings.categories} />
+          <InventoryFilterBar categories={settings.categories} brands={brands} />
+          {isOwner && <ImportInventoryButton />}
           {canMutate && <AddInventoryItemSheet categories={settings.categories} />}
         </div>
       </div>
@@ -81,53 +82,12 @@ export default async function InventoryPage({ searchParams }: InventoryPageProps
           />
         </AppleCard>
       ) : (
-        <AppleCard glow className="overflow-x-auto p-0">
-          <table className="w-full min-w-[800px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
-                <th className="px-4 py-3">Name</th>
-                <th className="px-4 py-3">Brand</th>
-                <th className="px-4 py-3">Category</th>
-                <th className="px-4 py-3 text-right">Rate</th>
-                <th className="px-4 py-3 text-right">Quantity</th>
-                <th className="px-4 py-3" />
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((item) => {
-                const lowStock = item.quantity <= item.lowStockThreshold
-                return (
-                  <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/50">
-                    <td className="px-4 py-3 font-medium text-foreground">{item.name}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.brand ?? "—"}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{item.category}</td>
-                    <td className="px-4 py-3 text-right text-muted-foreground">
-                      {item.ratePerUnit > 0
-                        ? `₹${item.ratePerUnit.toLocaleString("en-IN")} / ${item.unitType}`
-                        : "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold text-foreground">
-                      {item.quantity}
-                    </td>
-                    <td className="px-4 py-3">
-                      {lowStock && <AppleBadge variant="danger">Low Stock</AppleBadge>}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        {canMutate && <StockAdjustControls itemId={item.id} />}
-                        {canMutate && (
-                          <EditInventoryItemSheet item={item} categories={settings.categories} />
-                        )}
-                        {isOwner && <DeleteInventoryItemButton itemId={item.id} />}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </AppleCard>
+        <InventoryTable
+          items={items}
+          categories={settings.categories}
+          canMutate={canMutate}
+          isOwner={isOwner}
+        />
       )}
     </div>
   )

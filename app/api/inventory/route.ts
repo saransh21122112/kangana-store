@@ -11,10 +11,11 @@ export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category") ?? undefined;
+  const brand = searchParams.get("brand") ?? undefined;
   const search = searchParams.get("search") ?? undefined;
   const lowStockOnly = searchParams.get("lowStockOnly") === "true";
 
-  const items = await getAllInventoryItems({ category, search, lowStockOnly });
+  const items = await getAllInventoryItems({ category, brand, search, lowStockOnly });
   return NextResponse.json({ items });
 }
 
