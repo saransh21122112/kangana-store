@@ -232,14 +232,18 @@ async function main() {
   }
 
   // --- Bills (1-8 per customer, spread over last 12 months) ---
+  // Stage 21: Bill is a header row over BillLineItem[] — each seeded bill
+  // gets exactly one line item (single category/amount, matching this
+  // script's original one-category-per-bill flavor of seed data), created
+  // in the same nested-write shape `createBillWithRollup` uses for real
+  // bills rather than the old flat category/amount columns (dropped from
+  // the schema once every query/UI path stopped depending on them).
   let billCounter = 1;
 
   for (let i = 0; i < createdCustomerIds.length; i++) {
     const customerId = createdCustomerIds[i];
     const rnd = seededRandom(i + 500);
     const numBills = 1 + Math.floor(rnd() * 8); // 1..8
-
-    const billsData: { billNo: string; date: Date; amount: number; category: string }[] = [];
 
     for (let b = 0; b < numBills; b++) {
       const category = pick(CATEGORIES, i + b);
@@ -248,19 +252,24 @@ async function main() {
       const billNo = `INV-2026-${String(billCounter).padStart(5, "0")}`;
       billCounter++;
 
-      billsData.push({ billNo, date, amount, category });
+      await prisma.bill.create({
+        data: {
+          billNo,
+          date,
+          amount,
+          customerId,
+          lineItems: {
+            create: [{ category, quantity: 1, lineTotal: amount }],
+          },
+        },
+      });
     }
 
-    await prisma.bill.createMany({
-      data: billsData.map((bd) => ({
-        ...bd,
-        customerId,
-      })),
-      skipDuplicates: true,
-    });
-
     // --- Compute rollups the same way real rollup-maintenance logic would ---
-    const bills = await prisma.bill.findMany({ where: { customerId } });
+    const bills = await prisma.bill.findMany({
+      where: { customerId },
+      include: { lineItems: true },
+    });
     const totalPurchaseAmount = bills.reduce((sum, x) => sum + x.amount, 0);
     const totalVisits = bills.length;
     const averageBillValue = totalVisits > 0 ? totalPurchaseAmount / totalVisits : 0;
@@ -269,16 +278,22 @@ async function main() {
         ? bills.reduce((max, x) => (x.date > max ? x.date : max), bills[0].date)
         : null;
 
-    // mode category (most frequent)
-    const freq = new Map<string, number>();
+    // mode category (most frequent), weighted by lineTotal — mirrors
+    // `recalculateCustomerRollup`'s tie-break logic.
+    const freq = new Map<string, { amount: number; count: number }>();
     for (const bill of bills) {
-      freq.set(bill.category, (freq.get(bill.category) ?? 0) + 1);
+      for (const lineItem of bill.lineItems) {
+        const entry = freq.get(lineItem.category) ?? { amount: 0, count: 0 };
+        entry.amount += lineItem.lineTotal;
+        entry.count += 1;
+        freq.set(lineItem.category, entry);
+      }
     }
     let favouriteCategory: string | null = null;
-    let maxCount = 0;
-    for (const [cat, count] of freq) {
-      if (count > maxCount) {
-        maxCount = count;
+    let best: { amount: number; count: number } | null = null;
+    for (const [cat, entry] of freq) {
+      if (!best || entry.amount > best.amount || (entry.amount === best.amount && entry.count > best.count)) {
+        best = entry;
         favouriteCategory = cat;
       }
     }

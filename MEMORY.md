@@ -2999,3 +2999,169 @@ core, previously-untouched `createBillWithRollup`/`deleteBill` transactions. Des
   `Bill`/`Customer` rows.
 
 **Not pushed** — no push/deploy instruction given this stage either; still local.
+
+## Stage 21 — Loyalty Points, Returns/Exchanges, Multi-Item Bills, Activity Log
+
+User's request (verbatim, three asks in one message): "Loyalty points automation... Returns/
+exchanges... also keep track of which user add the customer or bill creation deletion customer
+editing etc etc so we can track." Clarifying answers: loyalty earn rate configurable in Settings
+(not hardcoded); redemption is a manual point adjustment on the customer profile (not automated
+bill-discount redemption); returns must support **partial** returns, **multiple different items
+per bill** (a real shopping cart, not one category/amount per bill), and staff choosing per-item
+cost vs. total cost, calculations handled by the app; audit log is OWNER-only.
+
+That last return-scope answer meant `Bill` had to stop being "one category + one amount" and
+become a header row over a `BillLineItem[]` cart — the first genuine data-restructuring migration
+this project has done post-launch, on a table the real Kangna showroom already has ~100 rows in.
+Given that risk, explicit user approval was sought before touching anything, and the user's answer
+added a hard requirement: **take a full backup first**, because "i dont want the new implementation
+to affect the data already present as application is in currently used by the kangna showroom."
+
+**Backup** (done first, before any schema change): `pg_dump` (custom + plain SQL format) via
+`DATABASE_URL_UNPOOLED`, needed `brew install postgresql@17` since local `pg_dump` was v16 and
+Neon's server is v17 (`pg_dump: error: aborting because of server version mismatch`) — used the
+v17 binary's full path directly rather than symlinking over the existing v16 install. Saved to
+`backups/` (gitignored, contains real customer PII), with a `backups/README.md` documenting why,
+the file formats, and exact `pg_restore`/`psql` restore commands. Verified against Prisma Studio:
+100 bills, 150 customers, all 8 tables present.
+
+**Schema, additive-first** (done directly): migration 1 adds `BillLineItem`, `BillReturn`,
+`ActivityLog` (all new tables, zero risk to existing data) plus `AppSettings.loyaltyPointsPerRupee
+Float @default(0.01)`; migration 2 is one `ALTER COLUMN category DROP NOT NULL` on `Bill` (new
+line-item bills don't set a top-level category anymore — each line item has its own). `Bill`'s old
+`category`/`inventoryItemId`/`quantitySold` columns were deliberately **kept**, not dropped, until
+every query/UI path was rewritten and verified — dropping them immediately after backfill (the
+original plan) would have left the app non-compiling for an extended stretch; documented as an
+explicit deferral, tracked as its own final task (still pending — see below).
+
+**Backfill**: `scripts/backfill-bill-line-items.ts`, idempotent (refuses to run if `BillLineItem`
+already has rows), copies each existing `Bill`'s category/amount/inventoryItemId/quantitySold into
+one corresponding `BillLineItem`. Ran once: 100 bills → 100 line items, sum verified exactly
+matching (₹430,777 = ₹430,777) before proceeding.
+
+**Query layer rewrite** (delegated to a background subagent — `lib/validations/bill.ts` and
+`lib/queries/bills.ts` both fully rewritten, then manually re-read line-by-line, not trusted from
+the self-report alone):
+- `billSchema` takes `{ billNo, date, customerId, lineItems: [...] }`; each line item is
+  `{ category, inventoryItemId?, quantity, unitPrice? | lineTotal? }` — a `.superRefine()` requires
+  exactly one of the two price fields, then a `.transform()` guarantees a concrete `lineTotal` on
+  every parsed item (computed from `unitPrice * quantity` when only unit price was given), so every
+  downstream consumer just reads `lineItem.lineTotal`.
+- `createBillWithRollup`'s stock check aggregates requested quantity **per distinct
+  `inventoryItemId` across all line items** before checking any of them — the subtle correctness
+  trap being that two line items of quantities 3 and 4 against a stock of 5 must be caught as a
+  combined "7 > 5" failure, which two independent per-line checks of "3 ≤ 5" and "4 ≤ 5" would each
+  wrongly pass. Explicitly named as a hard constraint in the delegation prompt; confirmed correct on
+  review and covered by a new e2e test.
+- `recalculateCustomerRollup` (touched again this stage, on top of the subagent's rewrite): now
+  nets out returns. `totalPurchaseAmount`/`averageBillValue`/`favouriteCategory` are computed from
+  each `BillLineItem`'s **net** amount (`lineTotal` minus the sum of its own `BillReturn.amountReturned`
+  rows), not the original sale total — a partial return should visibly reduce a customer's real
+  spend, not sit invisibly in a side table. `totalVisits`/`lastVisitDate` are unaffected (a bill
+  with a partial return is still a visit that happened).
+
+**AddBillForm rewrite** (delegated separately — 593 lines, also manually re-read line-by-line
+before trusting it): a real "shopping cart" editor using `useFieldArray` + `useWatch` for a live
+running total, `Controller` for per-row `<Select>` bindings (this codebase's first use of
+`Controller` — earlier single-item Selects used local `useState`/`setValue`), a per-row
+`PriceModeToggle` (deliberately *not* the shared `SegmentedControl`, since that component's
+Framer Motion active-indicator uses one hardcoded `layoutId` and would misbehave with several
+instances on screen at once), and per-row inventory-item fetching scoped to that row's own
+category (resetting the row's inventory link via the render-body-state-snapshot pattern — same
+approach used elsewhere in this codebase for "reset derived state when a prop changes" — rather
+than a `useEffect`, per the project's React conventions).
+
+**Loyalty points** (done directly): `AppSettings.loyaltyPointsPerRupee` read inside the bill
+transaction (`getLoyaltyPointsPerRupee`, `0.01` fallback if the settings row is somehow missing);
+`createBillWithRollup` awards `floor(bill.amount * rate)` on success, `deleteBill` claws the same
+back at the **current** rate (accepted simplification — the rate in effect at earn time isn't
+stored), clamped at 0. Manual adjustment: `adjustLoyaltyPoints(id, delta)` in
+`lib/queries/customers.ts` (mirrors `lib/queries/inventory.ts`'s `adjustStock`), a free-entry
+delta input (`LoyaltyPointsAdjuster.tsx`) rather than the inventory page's ±1 nudge buttons, since
+redemption amounts are usually bigger than one point at a time.
+
+**Returns** (`lib/queries/bill-returns.ts`, new, done directly): `createReturn(lineItemId,
+quantityReturned, reason, createdById)` — "available to return" is the line's original `quantity`
+minus the sum of `quantityReturned` across all its prior `BillReturn` rows (multiple partial
+returns on one line are fine as long as they never sum past the original). `amountReturned` is
+**never** trusted from the client — always computed server-side pro-rata from the line's own
+`lineTotal`/`quantity` (`lineTotal / quantity * quantityReturned`, rounded to 2 decimals), so a
+half-quantity return always refunds exactly half the line's value. On success: restores stock on
+the linked `InventoryItem` (if any), claws back loyalty points proportional to the refunded amount
+at the current rate, then calls `recalculateCustomerRollup`. `POST /api/bills/[id]/returns` checks
+the given `lineItemId` actually belongs to the bill in the URL before touching it (a client can't
+record a return against an unrelated bill's line item by guessing an id). Schema needed one more
+migration: `BillReturn.lineItem`'s FK gained `onDelete: Cascade` (was implicitly Restrict) so
+deleting a bill — which cascades to its `BillLineItem` rows — doesn't hit an FK violation when
+those line items have returns recorded against them; safe non-destructive change (`BillReturn` had
+zero rows in production at the time). UI: `RecordReturnSheet.tsx`, a per-bill-row "↩" button
+(OWNER+STAFF, same mutation permission as bill creation) listing only line items with remaining
+returnable quantity, wired into both `BillHistoryTable` (per-customer) and the global `/bills` list.
+
+**Activity log** (`lib/queries/activity-log.ts`, new, done directly): `logActivity(input)` called
+from every customer/bill create/update/delete route **after** the mutation succeeds, deliberately
+outside the mutation's own transaction — a logging failure must never block or roll back a real
+business action. `userEmail` is a denormalized snapshot at action time (not just a `userId` FK) so
+a log entry stays meaningful even after that `User` account is later deleted. `getRecentActivity()`
+caps at 100 rows. UI: `ActivityLogTable.tsx` (When/Who/What, read-only), wired into Settings as a
+new "Activity" tab, following the exact same "omit the tab entirely for non-OWNER" convention the
+pre-existing "Users" tab already used, rather than showing-but-gating it.
+
+**Verification:**
+- `npx tsc --noEmit` / `npx eslint .` clean throughout, re-checked after every subagent's work
+  landed and after this session's own direct edits.
+- `testing/e2e/bill-inventory-linking.spec.ts` had to be rewritten — it predated the line-item
+  restructuring and posted the old flat `{ amount, category, inventoryItemId, quantitySold }` body,
+  which the new `billSchema` now rejects outright. Rewritten to the `lineItems` shape, plus one new
+  test for the "two line items, same item, aggregated stock check" trap.
+- New `testing/e2e/loyalty-returns-activity-log.spec.ts` (5 tests): earn-on-create/claw-back-on-
+  delete, manual adjustment clamps at 0, partial return nets spend + restores stock + rejects an
+  over-return, cross-bill line-item tampering is rejected with 400, OWNER sees the Activity tab
+  with real entries. Two of these needed `test.setTimeout(90_000)` — same reasoning as the
+  pre-existing cron test: `createBillWithRollup`/`createReturn` are each several sequential Neon
+  round trips (~2-3s each, observed throughout this project), and a test exercising both plus
+  several GETs routinely exceeds the default 30s even with nothing wrong.
+- Full suite run fresh end to end: **48/48 passed**. Confirmed zero leftover `E2E`-prefixed
+  customers/bills/inventory items and no leftover `e2e-`-prefixed test users afterward.
+- Local dev server restarted (stale Prisma client after `prisma generate` — same recurring issue as
+  every previous migration this project has done).
+
+**Final step — dropping the old `Bill` columns** (done directly, after asking the user to confirm
+first — this is a real, irreversible schema change against the shared production DB, even though
+the columns were fully unused by this point): took one more fresh `pg_dump` backup (both custom
+and plain SQL format) right before running it. `npx prisma migrate dev` couldn't run non-
+interactively (it wants to prompt for confirmation on a "you're about to drop a column with 100
+non-null values" warning); worked around this by generating the exact migration SQL with `npx
+prisma migrate diff --from-config-datasource ... --to-schema prisma/schema.prisma --script`,
+writing it into a manually-created migration folder, then applying with `npx prisma migrate
+deploy` (non-interactive, no prompt) — same result as `migrate dev`, just without the interactive
+gate. Migration: drops the `Bill_inventoryItemId_fkey` FK, the `Bill_category_idx`/
+`Bill_inventoryItemId_idx` indexes, and the three `category`/`inventoryItemId`/`quantitySold`
+columns themselves. `InventoryItem.bills` (the now-orphaned inverse relation) removed from the
+schema too.
+
+Fallout fixed to keep the build green: `app/api/export/bills/route.ts`'s CSV export read
+`bill.category` directly — now derives it from `Array.from(new Set(lineItems.map(li =>
+li.category)))`, comma-joined (every distinct category, not just the first — CSV export shouldn't
+silently drop data the way the UI's "+N more" display convention deliberately does).
+`lib/queries/bills.ts`'s `createBillWithRollup` still set `category: null` in its `tx.bill.create`
+call — removed (redundant even before the drop, now a compile error without it gone).
+`prisma/seed.ts` predated Stage 21 entirely and seeded bills via the old flat shape — rewritten to
+create one `BillLineItem` per seeded bill via a nested write, with the favourite-category rollup
+math updated to match `recalculateCustomerRollup`'s weighted-by-lineTotal logic.
+`scripts/backfill-bill-line-items.ts` — the one-time backfill script, its job already done and
+verified — was deleted outright rather than fixed, since it literally cannot run again post-drop
+(references columns that no longer exist) and had no other purpose. README's ER diagram (hadn't
+been touched since before Stage 19/20/21 existed) updated to show `BillLineItem`, `BillReturn`,
+`InventoryItem`, and `ActivityLog`, plus a paragraph explaining the header/line-item split and how
+returns/loyalty interact with the rollup.
+
+**Post-migration verification:** `tsc`/`eslint` clean; direct DB query confirmed zero data loss
+(100 bills, 150 customers, sum of `Bill.amount` = sum of `BillLineItem.lineTotal` = ₹430,777,
+unchanged from pre-migration); dev server restarted; full e2e suite re-run twice — first run
+48/48, second (post this migration) 47/48 with one `roles.spec.ts` failure that was a `logout()`
+navigation timeout unrelated to any bill/schema code path, confirmed as flaky/transient by
+re-running that spec file alone immediately after (5/5 passed clean); zero leftover
+`E2E`-prefixed rows or `e2e-`-prefixed test users after both runs.
+
+**Not pushed** — no push/deploy instruction given this stage; still local.

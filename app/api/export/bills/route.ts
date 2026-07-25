@@ -18,7 +18,7 @@ export async function GET() {
 
   const bills = await prisma.bill.findMany({
     orderBy: { date: "asc" },
-    include: { customer: { select: { name: true } } },
+    include: { customer: { select: { name: true } }, lineItems: { select: { category: true } } },
   });
 
   const rows = bills.map((b) => ({
@@ -26,7 +26,11 @@ export async function GET() {
     billNo: b.billNo,
     date: b.date,
     amount: b.amount,
-    category: b.category,
+    // A bill's line items can span multiple categories (Stage 21) — CSV
+    // export lists every distinct one, comma-separated, rather than
+    // picking just the first (which `summarizeLineItems`'s "+N more" UI
+    // convention does for display, but would silently drop data here).
+    category: Array.from(new Set(b.lineItems.map((li) => li.category))).join(", "),
     customerId: b.customerId,
     customerName: b.customer.name,
   }));

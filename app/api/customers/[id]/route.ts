@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/requireRole";
 import { customerUpdateSchema } from "@/lib/validations/customer";
 import { deleteCustomer, getCustomerById, updateCustomer } from "@/lib/queries/customers";
+import { logActivity } from "@/lib/queries/activity-log";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -53,6 +54,15 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     );
   }
 
+  await logActivity({
+    userId: guard.session.user.id,
+    userEmail: guard.session.user.email,
+    action: "customer.update",
+    entityType: "Customer",
+    entityId: id,
+    summary: `Updated customer ${result.customer.name}`,
+  });
+
   return NextResponse.json({ customer: result.customer });
 }
 
@@ -67,6 +77,15 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   }
 
   await deleteCustomer(id);
+
+  await logActivity({
+    userId: guard.session.user.id,
+    userEmail: guard.session.user.email,
+    action: "customer.delete",
+    entityType: "Customer",
+    entityId: id,
+    summary: `Deleted customer ${existing.name} (${existing.mobileNumber})`,
+  });
 
   return NextResponse.json({ success: true });
 }

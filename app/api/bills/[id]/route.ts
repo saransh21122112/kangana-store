@@ -4,6 +4,7 @@ import { z } from "zod";
 import { requireRole } from "@/lib/auth/requireRole";
 import { billUpdateSchema } from "@/lib/validations/bill";
 import { deleteBill, getBillById, updateBill } from "@/lib/queries/bills";
+import { logActivity } from "@/lib/queries/activity-log";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -55,6 +56,15 @@ export async function PATCH(req: Request, { params }: RouteParams) {
     );
   }
 
+  await logActivity({
+    userId: guard.session.user.id,
+    userEmail: guard.session.user.email,
+    action: "bill.update",
+    entityType: "Bill",
+    entityId: result.bill.id,
+    summary: `Updated bill ${result.bill.billNo}`,
+  });
+
   return NextResponse.json({ bill: result.bill });
 }
 
@@ -63,11 +73,25 @@ export async function DELETE(_req: Request, { params }: RouteParams) {
   if (!guard.ok) return guard.response;
 
   const { id } = await params;
+  const existing = await getBillById(id);
+  if (!existing) {
+    return NextResponse.json({ error: "Bill not found" }, { status: 404 });
+  }
+
   const result = await deleteBill(id);
 
   if (!result.ok) {
     return NextResponse.json({ error: "Bill not found" }, { status: 404 });
   }
+
+  await logActivity({
+    userId: guard.session.user.id,
+    userEmail: guard.session.user.email,
+    action: "bill.delete",
+    entityType: "Bill",
+    entityId: id,
+    summary: `Deleted bill ${existing.billNo} (₹${existing.amount.toLocaleString("en-IN")})`,
+  });
 
   return NextResponse.json({ ok: true });
 }
