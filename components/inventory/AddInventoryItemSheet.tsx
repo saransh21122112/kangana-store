@@ -8,7 +8,11 @@ import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import type { z } from "zod"
 
-import { inventoryItemSchema, type InventoryItemInput } from "@/lib/validations/inventory"
+import {
+  inventoryItemSchema,
+  UNIT_TYPE_OPTIONS,
+  type InventoryItemInput,
+} from "@/lib/validations/inventory"
 import { AppleSheet } from "@/components/apple/AppleSheet"
 import { AppleButton } from "@/components/apple/AppleButton"
 import { Input } from "@/components/ui/input"
@@ -48,6 +52,7 @@ export function AddInventoryItemSheet({ categories, trigger }: AddInventoryItemS
   const router = useRouter()
   const [open, setOpen] = React.useState(false)
   const [category, setCategory] = React.useState<string>(categories[0] ?? "")
+  const [unitType, setUnitType] = React.useState<string>(UNIT_TYPE_OPTIONS[0])
   const [serverError, setServerError] = React.useState<string | null>(null)
 
   const {
@@ -60,6 +65,9 @@ export function AddInventoryItemSheet({ categories, trigger }: AddInventoryItemS
     defaultValues: {
       name: "",
       category: categories[0] ?? "",
+      brand: "",
+      unitType: UNIT_TYPE_OPTIONS[0],
+      ratePerUnit: 0,
       quantity: 0,
       lowStockThreshold: 5,
     },
@@ -71,7 +79,7 @@ export function AddInventoryItemSheet({ categories, trigger }: AddInventoryItemS
       const res = await fetch("/api/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, category }),
+        body: JSON.stringify({ ...data, category, unitType }),
       })
       const json = await res.json().catch(() => null)
 
@@ -135,6 +143,43 @@ export function AddInventoryItemSheet({ categories, trigger }: AddInventoryItemS
               </SelectContent>
             </Select>
             {errors.category && <p className="text-xs text-danger">{errors.category.message}</p>}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="inv-brand">Brand (optional)</Label>
+            <Input id="inv-brand" placeholder="e.g. LAKME" {...register("brand")} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inv-unit-type">Unit</Label>
+              <Select value={unitType} onValueChange={(value) => setUnitType(value as string)}>
+                <SelectTrigger className="w-full" id="inv-unit-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_TYPE_OPTIONS.map((unit) => (
+                    <SelectItem key={unit} value={unit}>
+                      {unit}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="inv-rate">Rate per {unitType}</Label>
+              <Input
+                id="inv-rate"
+                type="number"
+                min={0}
+                step="0.01"
+                inputMode="decimal"
+                {...register("ratePerUnit")}
+              />
+              {errors.ratePerUnit && (
+                <p className="text-xs text-danger">{errors.ratePerUnit.message}</p>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

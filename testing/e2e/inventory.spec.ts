@@ -137,7 +137,12 @@ test.describe("Inventory — page renders (OWNER)", () => {
     })
     page.on("pageerror", (err) => errors.push(err.message))
 
-    await page.goto("/inventory")
+    // Scoped by `?search=` — the page caps its unfiltered listing at 200
+    // rows (the store's real catalog has ~5,300 bulk-imported items), so a
+    // freshly created item with a random/timestamped name has no guarantee
+    // of landing in that first alphabetical page without narrowing down to
+    // it directly, the same way a real user would find it.
+    await page.goto(`/inventory?search=${encodeURIComponent(item.name)}`)
     await expect(page.getByText(item.name)).toBeVisible()
     expect(errors, `console errors on /inventory:\n${errors.join("\n")}`).toEqual([])
 

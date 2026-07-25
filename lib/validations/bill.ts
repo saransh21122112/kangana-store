@@ -8,12 +8,14 @@ import { z } from "zod";
  * the exact same list rather than re-declaring it.
  */
 export const BILL_CATEGORIES = [
-  "Jewellery - Gold",
-  "Jewellery - Diamond",
-  "Jewellery - Silver",
-  "Beauty Services",
-  "Skincare",
+  "Jewellery",
+  "Bangles",
   "Makeup",
+  "Innerwear",
+  "Handbag",
+  "Bridal Package",
+  "Skincare",
+  "Accessories",
   "Other",
 ] as const;
 

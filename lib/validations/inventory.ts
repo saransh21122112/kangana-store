@@ -15,10 +15,27 @@ const nonNegativeIntSchema = z
     return num;
   });
 
+/** Non-negative number (price), same string-or-number acceptance as above. */
+const nonNegativeNumberSchema = z
+  .union([z.string(), z.number()])
+  .transform((val, ctx) => {
+    const num = typeof val === "string" ? Number(val) : val;
+    if (Number.isNaN(num) || num < 0) {
+      ctx.addIssue({ code: "custom", message: "Must be 0 or greater" });
+      return z.NEVER;
+    }
+    return num;
+  });
+
+export const UNIT_TYPE_OPTIONS = ["Pcs", "Box", "Dozen", "PKT", "Set"] as const;
+
 /** Full schema for creating an inventory item. */
 export const inventoryItemSchema = z.object({
   name: z.string().min(1, "Name is required"),
   category: z.string().min(1, "Category is required"),
+  brand: z.string().trim().optional(),
+  unitType: z.string().min(1, "Unit is required").default("Pcs"),
+  ratePerUnit: nonNegativeNumberSchema.default(0),
   quantity: nonNegativeIntSchema,
   lowStockThreshold: nonNegativeIntSchema,
 });
@@ -26,10 +43,11 @@ export const inventoryItemSchema = z.object({
 export type InventoryItemInput = z.infer<typeof inventoryItemSchema>;
 
 /**
- * Partial variant for PATCH/update — name/category/lowStockThreshold only.
- * `quantity` is deliberately excluded here: stock changes go through the
- * separate delta-based `stockAdjustSchema`/`/adjust` endpoint instead, so
- * editing an item's details can never accidentally overwrite its quantity.
+ * Partial variant for PATCH/update — name/category/brand/unitType/
+ * ratePerUnit/lowStockThreshold only. `quantity` is deliberately excluded
+ * here: stock changes go through the separate delta-based
+ * `stockAdjustSchema`/`/adjust` endpoint instead, so editing an item's
+ * details can never accidentally overwrite its quantity.
  */
 export const inventoryItemUpdateSchema = inventoryItemSchema
   .omit({ quantity: true })

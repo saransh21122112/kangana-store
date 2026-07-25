@@ -12,7 +12,7 @@ import {
   type FieldErrors,
 } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Plus, Trash2 } from "lucide-react"
+import { Plus, Search, Trash2, X } from "lucide-react"
 import type { z } from "zod"
 
 import { billSchema, BILL_CATEGORIES, type BillInput } from "@/lib/validations/bill"
@@ -51,13 +51,12 @@ type LineItemErrors = FieldErrors<LineItemFormValues> | undefined
 interface InventoryItemOption {
   id: string
   name: string
+  brand: string | null
+  category: string
+  unitType: string
+  ratePerUnit: number
   quantity: number
 }
-
-/** Sentinel value for the "None" option in each row's inventory-item
- * `<Select>` — mirrors `CustomerFilterBar`'s `"__any__"` pattern, since Base
- * UI's Select doesn't take a real empty-string value. */
-const NO_ITEM_VALUE = "__none__"
 
 /** Which of `unitPrice`/`lineTotal` a given row is currently using — purely
  * UI state (not part of `billSchema`), one entry per row, kept in lockstep
@@ -352,52 +351,69 @@ function LineItemRow({
   canRemove,
   errors,
 }: LineItemRowProps) {
-  const category = useWatch({ control, name: `lineItems.${index}.category` })
   const quantity = useWatch({ control, name: `lineItems.${index}.quantity` })
   const unitPrice = useWatch({ control, name: `lineItems.${index}.unitPrice` })
   const lineTotal = useWatch({ control, name: `lineItems.${index}.lineTotal` })
 
   /**
-   * Stocked inventory items available for this row's currently-selected
-   * category, fetched whenever this row's `category` changes — same
-   * fetch-on-effect pattern the single-item version of this form used
-   * globally, but now scoped per-row.
+   * Inventory search-as-you-type: searches by name OR brand across the
+   * full catalog (not category-scoped — with ~5,000+ bulk-imported SKUs,
+   * making staff pick a category first before they can even search added
+   * friction rather than removing it). `category` and `inventoryItemId`
+   * stay independent fields per the schema (a line item's reporting
+   * category doesn't have to match the linked item's own category), so
+   * picking a search result auto-fills category as a convenience default
+   * but doesn't lock it.
    */
-  const [availableItems, setAvailableItems] = React.useState<InventoryItemOption[] | null>(null)
-
-  /**
-   * Resetting this row's inventory link when its category changes is state
-   * derived from a value changing between renders, not a synchronization
-   * with an external system — so per React's "Adjusting some state when a
-   * prop changes" pattern, this compares against a *state* snapshot of the
-   * last-seen category (not a ref) and calls `setState` directly in the
-   * render body when it differs, rather than inside a `useEffect`.
-   */
-  const [lastCategory, setLastCategory] = React.useState(category)
-  if (lastCategory !== category) {
-    setLastCategory(category)
-    setAvailableItems(null)
-    setValue(`lineItems.${index}.inventoryItemId`, undefined)
-  }
+  const [searchTerm, setSearchTerm] = React.useState("")
+  const [searchResults, setSearchResults] = React.useState<InventoryItemOption[]>([])
+  const [searchOpen, setSearchOpen] = React.useState(false)
+  const [selectedItem, setSelectedItem] = React.useState<InventoryItemOption | null>(null)
 
   React.useEffect(() => {
-    if (!category) return
+    const term = searchTerm.trim()
+    if (term.length < 2) {
+      // Nothing to fetch — the render below already treats a too-short
+      // term as "no results" (see `visibleResults`), so there's no need to
+      // clear `searchResults` here too (that would be a synchronous
+      // setState-in-effect for no behavioral gain).
+      return
+    }
     let cancelled = false
-    fetch(`/api/inventory?category=${encodeURIComponent(category)}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json: { items?: InventoryItemOption[] } | null) => {
-        if (cancelled) return
-        if (json?.items) {
-          setAvailableItems(json.items)
-        }
-      })
-      .catch(() => {
-        // Leave availableItems null — picker section stays hidden.
-      })
+    const timeout = setTimeout(() => {
+      fetch(`/api/inventory?search=${encodeURIComponent(term)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((json: { items?: InventoryItemOption[] } | null) => {
+          if (cancelled) return
+          setSearchResults(json?.items ?? [])
+        })
+        .catch(() => {
+          // Leave previous results in place.
+        })
+    }, 250)
     return () => {
       cancelled = true
+      clearTimeout(timeout)
     }
-  }, [category])
+  }, [searchTerm])
+
+  const visibleResults = searchTerm.trim().length < 2 ? [] : searchResults
+
+  function selectSearchResult(item: InventoryItemOption) {
+    setSelectedItem(item)
+    setValue(`lineItems.${index}.inventoryItemId`, item.id)
+    setValue(`lineItems.${index}.category`, item.category)
+    if (item.ratePerUnit > 0 && priceMode === "unitPrice") {
+      setValue(`lineItems.${index}.unitPrice`, item.ratePerUnit)
+    }
+    setSearchTerm("")
+    setSearchOpen(false)
+  }
+
+  function clearSelection() {
+    setSelectedItem(null)
+    setValue(`lineItems.${index}.inventoryItemId`, undefined)
+  }
 
   const rowAmount =
     priceMode === "lineTotal"
@@ -470,36 +486,76 @@ function LineItemRow({
         </button>
       </div>
 
-      {availableItems && availableItems.length > 0 && (
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor={`lineItems.${index}.inventoryItemId`}>Link to inventory item (optional)</Label>
-          <Controller
-            control={control}
-            name={`lineItems.${index}.inventoryItemId`}
-            render={({ field }) => (
-              <Select
-                value={field.value ?? NO_ITEM_VALUE}
-                onValueChange={(val) => {
-                  const next = val as string
-                  field.onChange(next === NO_ITEM_VALUE ? undefined : next)
-                }}
-              >
-                <SelectTrigger id={`lineItems.${index}.inventoryItemId`} className="w-full">
-                  <SelectValue placeholder="None" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_ITEM_VALUE}>None</SelectItem>
-                  {availableItems.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.name} ({item.quantity} in stock)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+      <div className="flex flex-col gap-1.5">
+        <Label>Link to inventory item (optional)</Label>
+        {selectedItem ? (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2">
+            <div className="text-sm">
+              <span className="font-medium text-foreground">{selectedItem.name}</span>
+              {selectedItem.brand && (
+                <span className="text-muted-foreground"> · {selectedItem.brand}</span>
+              )}
+              <p className="text-xs text-muted-foreground">
+                {selectedItem.quantity} in stock
+                {selectedItem.ratePerUnit > 0 &&
+                  ` · ₹${selectedItem.ratePerUnit}/${selectedItem.unitType}`}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={clearSelection}
+              aria-label="Clear linked item"
+              className="flex size-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-danger/10 hover:text-danger"
+            >
+              <X {...ICON_PROPS} size={14} />
+            </button>
+          </div>
+        ) : (
+          <div className="relative">
+            <Search
+              {...ICON_PROPS}
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setSearchOpen(true)
+              }}
+              onFocus={() => setSearchOpen(true)}
+              onBlur={() => setTimeout(() => setSearchOpen(false), 150)}
+              placeholder="Search by name or brand…"
+              className="pl-9"
+            />
+            {searchOpen && visibleResults.length > 0 && (
+              <div className="absolute z-20 mt-1 max-h-56 w-full overflow-y-auto rounded-xl border border-border bg-card shadow-apple-card">
+                {visibleResults.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectSearchResult(item)}
+                    className="flex w-full flex-col items-start gap-0.5 px-3 py-2 text-left text-sm hover:bg-muted/50"
+                  >
+                    <span className="font-medium text-foreground">{item.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.brand ? `${item.brand} · ` : ""}
+                      {item.category} · {item.quantity} in stock
+                      {item.ratePerUnit > 0 && ` · ₹${item.ratePerUnit}/${item.unitType}`}
+                    </span>
+                  </button>
+                ))}
+              </div>
             )}
-          />
-        </div>
-      )}
+            {searchOpen && searchTerm.trim().length >= 2 && visibleResults.length === 0 && (
+              <div className="absolute z-20 mt-1 w-full rounded-xl border border-border bg-card px-3 py-2 text-xs text-muted-foreground shadow-apple-card">
+                No matching items.
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">

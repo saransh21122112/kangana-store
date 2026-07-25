@@ -7,7 +7,10 @@ import {
   getTopSpenders,
 } from "@/lib/queries/customer-lists";
 import { getLowStockItems } from "@/lib/queries/inventory";
-import { createNotificationIfNotExists } from "@/lib/queries/notifications";
+import {
+  createNotificationIfNotExists,
+  createNotificationsIfNotExistsBatch,
+} from "@/lib/queries/notifications";
 
 /**
  * GET /api/cron/daily-check — meant to be hit once a day by Vercel Cron
@@ -109,13 +112,20 @@ export async function GET(req: Request) {
   // notification only — this app never sends WhatsApp automatically (see
   // the Campaigns page's own "nothing goes out automatically" note), and
   // low-stock alerts don't get a special exception to that rule.
+  //
+  // Batched (not a `notify()` loop) since the bulk product-catalog import
+  // means this list is now in the thousands, not a handful — seq per-item
+  // dedupe+insert round-trips at that volume would make this route take
+  // minutes. See `createNotificationsIfNotExistsBatch`'s doc comment.
   const lowStockItems = await getLowStockItems();
-  for (const item of lowStockItems) {
-    await notify(
-      `low-stock:${item.id}`,
-      `📦 ${item.name} is low on stock: ${item.quantity} left (threshold ${item.lowStockThreshold}).`
-    );
-  }
+  const lowStockResult = await createNotificationsIfNotExistsBatch(
+    lowStockItems.map((item) => ({
+      type: `low-stock:${item.id}`,
+      message: `📦 ${item.name} is low on stock: ${item.quantity} left (threshold ${item.lowStockThreshold}).`,
+    }))
+  );
+  created += lowStockResult.created;
+  skipped += lowStockResult.skipped;
 
   return NextResponse.json({ ok: true, created, skipped, ranAt: now.toISOString() });
 }
