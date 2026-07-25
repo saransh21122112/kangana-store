@@ -148,6 +148,54 @@ export async function getTopSpenders(limit = 20): Promise<Customer[]> {
   });
 }
 
+export interface TopSpenderInRange {
+  id: string;
+  name: string;
+  mobileNumber: string;
+  totalSpend: number;
+}
+
+/**
+ * Top spenders within `[start, end)`, by sum of `Bill.amount` in that
+ * window — deliberately a separate function from `getTopSpenders` rather
+ * than a date-filtered variant of it: that one ranks by `Customer.
+ * totalPurchaseAmount`, an all-time rolling field maintained on every bill
+ * mutation, which has no way to answer "top spenders in just this window"
+ * (a customer's all-time total says nothing about what they spent in the
+ * last 30 days specifically). Used by the Reports page's period filter;
+ * `getTopSpenders` (all-time) still backs `/lists`' own Top Spenders view,
+ * unchanged.
+ */
+export async function getTopSpendersInRange(
+  start: Date,
+  end: Date,
+  limit = 20
+): Promise<TopSpenderInRange[]> {
+  const grouped = await prisma.bill.groupBy({
+    by: ["customerId"],
+    where: { date: { gte: start, lt: end } },
+    _sum: { amount: true },
+    orderBy: { _sum: { amount: "desc" } },
+    take: limit,
+  });
+
+  if (grouped.length === 0) return [];
+
+  const customers = await prisma.customer.findMany({
+    where: { id: { in: grouped.map((g) => g.customerId) } },
+    select: { id: true, name: true, mobileNumber: true },
+  });
+  const byId = new Map(customers.map((c) => [c.id, c]));
+
+  return grouped
+    .map((g) => {
+      const customer = byId.get(g.customerId);
+      if (!customer) return null;
+      return { ...customer, totalSpend: g._sum.amount ?? 0 };
+    })
+    .filter((row): row is TopSpenderInRange => row !== null);
+}
+
 /**
  * Customers whose `customerSince` falls within the current calendar month
  * (1st of this month, 00:00, through `from`) — a real calendar-month

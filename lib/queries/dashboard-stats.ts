@@ -14,6 +14,22 @@ function startOfMonth(from: Date): Date {
 }
 
 /**
+ * `[start, end)` for a rolling `windowDays`-day window ending today
+ * (inclusive of today). Exported so callers needing more than one
+ * query scoped to "the same N-day window" (e.g. the Reports page's
+ * period filter driving the daily-sales chart, category donut, and top
+ * spenders table all at once) use identical boundaries rather than each
+ * recomputing its own and risking an off-by-one mismatch between them.
+ */
+export function getDaysWindow(windowDays: number, from: Date = new Date()): { start: Date; end: Date } {
+  const todayStart = startOfDay(from);
+  return {
+    start: new Date(todayStart.getTime() - (windowDays - 1) * DAY_MS),
+    end: new Date(todayStart.getTime() + DAY_MS),
+  };
+}
+
+/**
  * Count of distinct customers who have at least one `Bill` dated today
  * (local calendar day, [00:00, tomorrow 00:00)).
  */
@@ -116,17 +132,16 @@ function toDateKey(d: Date): string {
 }
 
 /**
- * Daily sales totals for the last 30 days (including today), oldest first.
- * Every day in the window gets an entry, even if it has zero sales — a
- * chart with skipped/missing days would look wrong (gaps read as "no
- * data" rather than "zero").
+ * Daily sales totals for the last `windowDays` days (including today),
+ * oldest first. Every day in the window gets an entry, even if it has zero
+ * sales — a chart with skipped/missing days would look wrong (gaps read as
+ * "no data" rather than "zero").
  */
-export async function getDailySalesLast30Days(from: Date = new Date()): Promise<DailySales[]> {
-  const todayStart = startOfDay(from);
-  const windowStart = new Date(
-    todayStart.getTime() - (DAILY_SALES_WINDOW_DAYS - 1) * DAY_MS
-  );
-  const windowEnd = new Date(todayStart.getTime() + DAY_MS);
+export async function getDailySalesForDays(
+  windowDays: number,
+  from: Date = new Date()
+): Promise<DailySales[]> {
+  const { start: windowStart, end: windowEnd } = getDaysWindow(windowDays, from);
 
   const bills = await prisma.bill.findMany({
     where: { date: { gte: windowStart, lt: windowEnd } },
@@ -140,13 +155,19 @@ export async function getDailySalesLast30Days(from: Date = new Date()): Promise<
   }
 
   const days: DailySales[] = [];
-  for (let i = 0; i < DAILY_SALES_WINDOW_DAYS; i++) {
+  for (let i = 0; i < windowDays; i++) {
     const d = new Date(windowStart.getTime() + i * DAY_MS);
     const key = toDateKey(d);
     days.push({ date: key, total: totals.get(key) ?? 0 });
   }
 
   return days;
+}
+
+/** Daily sales for the last 30 days — thin wrapper over
+ * `getDailySalesForDays` kept for the Dashboard page's fixed 30-day chart. */
+export async function getDailySalesLast30Days(from: Date = new Date()): Promise<DailySales[]> {
+  return getDailySalesForDays(DAILY_SALES_WINDOW_DAYS, from);
 }
 
 export interface CategorySales {
@@ -157,10 +178,28 @@ export interface CategorySales {
 /** Sales summed by `BillLineItem.category`, descending by total, for a
  * donut chart. Grouped by line item (not `Bill.category`, which no longer
  * represents a whole bill's category now that bills hold multiple line
- * items) so this reflects real per-item categories. */
+ * items) so this reflects real per-item categories. All-time — no date
+ * filter — used by the Dashboard's fixed donut; the Reports page uses
+ * `getSalesByCategoryInRange` below instead so its donut moves with the
+ * page's period filter. */
 export async function getSalesByCategory(): Promise<CategorySales[]> {
   const grouped = await prisma.billLineItem.groupBy({
     by: ["category"],
+    _sum: { lineTotal: true },
+  });
+
+  return grouped
+    .map((g) => ({ category: g.category, total: g._sum.lineTotal ?? 0 }))
+    .sort((a, b) => b.total - a.total);
+}
+
+/** Same as `getSalesByCategory`, scoped to line items whose owning bill's
+ * `date` falls within `[start, end)`. `BillLineItem` has no `date` of its
+ * own (it inherits its bill's), hence the `bill: { date: ... }` filter. */
+export async function getSalesByCategoryInRange(start: Date, end: Date): Promise<CategorySales[]> {
+  const grouped = await prisma.billLineItem.groupBy({
+    by: ["category"],
+    where: { bill: { date: { gte: start, lt: end } } },
     _sum: { lineTotal: true },
   });
 

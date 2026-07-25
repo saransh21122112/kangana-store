@@ -46,6 +46,9 @@ export interface CustomerListTableProps {
    * metric is currency, so callers opt into masking it per-view rather
    * than this component guessing from the metric's content. */
   hideMetric?: boolean
+  /** VIEWER can still see the phone number, just not call/message through
+   * it — narrower than `hidePhone`, which hides the number text too. */
+  hideContactActions?: boolean
 }
 
 const metricVariantClasses: Record<CustomerListMetricVariant, string> = {
@@ -69,6 +72,7 @@ export function CustomerListTable({
   className,
   hidePhone,
   hideMetric,
+  hideContactActions,
 }: CustomerListTableProps) {
   if (rows.length === 0) {
     return (
@@ -123,7 +127,7 @@ export function CustomerListTable({
               )}
 
               <div className="flex shrink-0 items-center gap-1.5">
-                {!hidePhone && (
+                {!hidePhone && !hideContactActions && (
                   <>
                     <a
                       href={`tel:${customer.mobileNumber}`}

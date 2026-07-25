@@ -30,7 +30,9 @@ function formatDayLabel(dateKey: string): string {
 }
 
 /**
- * Daily sales for the last 30 days, as an area chart. Client component
+ * Daily sales as an area chart — originally always a fixed 30-day window,
+ * now also used by the Reports page's period filter (30/60/90/365 days),
+ * so `data.length` varies a lot more than it used to. Client component
  * because Recharts needs the browser; the page fetches the data
  * server-side and passes it in as props.
  *
@@ -43,6 +45,11 @@ export function RevenueChart({ data }: RevenueChartProps) {
     () => data.map((d) => ({ ...d, label: formatDayLabel(d.date) })),
     [data]
   )
+  // Aim for ~8 visible X-axis labels regardless of range — a fixed
+  // `interval={4}` (right for 30 daily points) would either waste space
+  // (too few labels) on a 60/90-day view or overlap into an unreadable
+  // smear on the 365-day "This Year" view.
+  const tickInterval = Math.max(0, Math.ceil(chartData.length / 8) - 1)
 
   return (
     <div className="h-64 w-full">
@@ -60,7 +67,7 @@ export function RevenueChart({ data }: RevenueChartProps) {
             tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: "var(--border)" }}
-            interval={4}
+            interval={tickInterval}
           />
           <YAxis
             tick={{ fill: "var(--muted-foreground)", fontSize: 11 }}

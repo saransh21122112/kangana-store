@@ -79,7 +79,7 @@ export function WeMissYouPanel({ candidates, templateId }: WeMissYouPanelProps) 
 
   return (
     <AppleCard glow className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-base font-semibold text-foreground">We Miss You — Owner Review</h2>
           <p className="text-sm text-muted-foreground">

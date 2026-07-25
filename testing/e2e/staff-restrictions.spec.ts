@@ -181,3 +181,70 @@ test.describe("STAFF permission narrowing (amounts, phone numbers, edit, returns
     await logout(page)
   })
 })
+
+/**
+ * VIEWER keeps its existing broad read access (amounts, phone numbers,
+ * bill history are all unchanged) — the one new restriction is Call/
+ * WhatsApp, which is now OWNER-only everywhere, same reasoning as
+ * `SendMessageSheet` already being OWNER-only: only the owner should be
+ * the one actually reaching out to a customer.
+ */
+test.describe("VIEWER: Call/WhatsApp is OWNER-only, everything else unchanged", () => {
+  let viewerUser: TestUser
+  let customerId: string
+  let billId: string
+
+  test.beforeAll(async ({ browser }) => {
+    const page = await browser.newPage()
+    await loginAs(page, OWNER_EMAIL, OWNER_PASSWORD)
+    viewerUser = await createTestUser(page, "VIEWER")
+    ;({ customerId, billId } = await createTestCustomerAndBill(page))
+    await page.close()
+  })
+
+  test.afterAll(async ({ browser }) => {
+    const page = await browser.newPage()
+    await loginAs(page, OWNER_EMAIL, OWNER_PASSWORD)
+    await page.request.delete(`/api/bills/${billId}`)
+    await page.request.delete(`/api/customers/${customerId}`)
+    await deleteTestUser(page, viewerUser.id)
+    await page.close()
+  })
+
+  test("UI: /customers cards show phone + Total Spend but no Call/WhatsApp for VIEWER", async ({
+    page,
+  }) => {
+    await loginAs(page, viewerUser.email, viewerUser.password)
+    await page.goto("/customers")
+
+    await expect(page.getByText("Total Spend").first()).toBeVisible()
+    await expect(page.getByRole("button", { name: "Call" })).toHaveCount(0)
+    await expect(page.getByRole("button", { name: "WhatsApp" })).toHaveCount(0)
+
+    await logout(page)
+  })
+
+  test("UI: customer profile shows phone as plain text (not a tel: link) and no WhatsApp for VIEWER", async ({
+    page,
+  }) => {
+    await loginAs(page, viewerUser.email, viewerUser.password)
+    await page.goto(`/customers/${customerId}`)
+
+    await expect(page.getByText("Total Purchase")).toBeVisible()
+    await expect(page.locator('a[href^="tel:"]')).toHaveCount(0)
+    await expect(page.getByRole("link", { name: "WhatsApp" })).toHaveCount(0)
+
+    await logout(page)
+  })
+
+  test("UI: /lists Top Spenders shows the amount but no Call/WhatsApp for VIEWER", async ({ page }) => {
+    await loginAs(page, viewerUser.email, viewerUser.password)
+    await page.goto("/lists?view=top-spenders")
+
+    await expect(page.getByText(/spent$/).first()).toBeVisible()
+    await expect(page.locator('a[title="Call"]')).toHaveCount(0)
+    await expect(page.locator('a[title="WhatsApp"]')).toHaveCount(0)
+
+    await logout(page)
+  })
+})

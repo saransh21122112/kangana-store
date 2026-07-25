@@ -46,11 +46,16 @@ export const dynamic = "force-dynamic"
 
 export default async function CustomersPage({ searchParams }: CustomersPageProps) {
   const session = await auth()
+  const isOwner = session?.user.role === "OWNER"
   const isViewer = session?.user.role === "VIEWER"
   const isStaff = session?.user.role === "STAFF"
   // STAFF can add customers/bills but can't see phone numbers, call/message
   // them, or see bill-derived totals (Total Spend).
   const showSensitive = !isStaff
+  // Call/WhatsApp is OWNER-only — VIEWER can still see the phone number
+  // itself (read-only access is otherwise unchanged for VIEWER), just not
+  // actually contact the customer through it.
+  const canContact = isOwner
 
   const params = await searchParams
 
@@ -149,7 +154,7 @@ export default async function CustomersPage({ searchParams }: CustomersPageProps
                   )}
                 </Link>
 
-                {showSensitive && (
+                {canContact && (
                   <div className="flex items-center gap-2">
                     <a
                       href={`tel:${customer.mobileNumber}`}

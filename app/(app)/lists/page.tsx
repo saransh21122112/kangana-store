@@ -58,6 +58,7 @@ export const dynamic = "force-dynamic"
 
 export default async function ListsPage({ searchParams }: ListsPageProps) {
   const session = await auth()
+  const isOwner = session?.user.role === "OWNER"
   const isStaff = session?.user.role === "STAFF"
 
   const params = await searchParams
@@ -153,6 +154,7 @@ export default async function ListsPage({ searchParams }: ListsPageProps) {
         emptyDescription={emptyDescription}
         hidePhone={isStaff}
         hideMetric={isStaff && view === "top-spenders"}
+        hideContactActions={!isOwner}
       />
     </div>
   )

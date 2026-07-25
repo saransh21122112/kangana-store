@@ -94,6 +94,7 @@ export function StatTilesRow({
 
   const [periodSalesHidden, togglePeriodSalesHidden] = useHiddenValue("dashboard:total-sales-period-hidden")
   const [lifetimeSalesHidden, toggleLifetimeSalesHidden] = useHiddenValue("dashboard:lifetime-sales-hidden")
+  const [avgBillHidden, toggleAvgBillHidden] = useHiddenValue("dashboard:avg-bill-value-hidden")
 
   const tiles: Array<{
     key: string
@@ -124,12 +125,6 @@ export function StatTilesRow({
       label: "Repeat Customers",
       value: repeatCustomerCount,
       icon: Repeat,
-    },
-    {
-      key: "avg-bill-value",
-      label: "Average Bill Value",
-      value: currencyFormatter.format(storeAverageBillValue),
-      icon: Receipt,
     },
     {
       key: "inactive-customers",
@@ -177,6 +172,21 @@ export function StatTilesRow({
             <EyeToggleButton hidden={lifetimeSalesHidden} onToggle={toggleLifetimeSalesHidden} />
             <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
               <Wallet {...ICON_PROPS} size={22} />
+            </div>
+          </div>
+        </AppleCard>
+      </StaggerItem>
+
+      <StaggerItem>
+        <AppleCard glow className="flex items-start justify-between gap-4">
+          <StatTile
+            label="Average Bill Value"
+            value={avgBillHidden ? "••••••" : currencyFormatter.format(storeAverageBillValue)}
+          />
+          <div className="flex shrink-0 items-center gap-1">
+            <EyeToggleButton hidden={avgBillHidden} onToggle={toggleAvgBillHidden} />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent">
+              <Receipt {...ICON_PROPS} size={22} />
             </div>
           </div>
         </AppleCard>
